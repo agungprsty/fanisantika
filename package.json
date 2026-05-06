@@ -1,0 +1,26 @@
+{
+  "name": "affiliate-katalog",
+  "version": "1.0.0",
+  "description": "",
+  "main": "index.js",
+  "scripts": {
+      "dev": "tailwindcss -i ./src/input.css -o ./dist/output.css --watch",
+      "build:css": "tailwindcss -i ./src/input.css -o ./dist/output.css --minify",
+      "build:js": "terser ./src/app.js -o ./dist/app.js --compress --mangle",
+      "build:html": "html-minifier-terser --input-dir ./src --output-dir ./dist --collapse-whitespace --remove-comments --minify-js true --minify-css true --file-ext html",
+      "prod": "npm run build:css && npm run build:js && npm run build:html"
+  },
+  "keywords": [],
+  "author": "",
+  "license": "ISC",
+  "type": "commonjs",
+  "devDependencies": {
+    "@tailwindcss/cli": "^4.2.4",
+    "autoprefixer": "^10.5.0",
+    "cssnano": "^8.0.0",
+    "html-minifier-terser": "^7.2.0",
+    "postcss": "^8.5.14",
+    "tailwindcss": "^4.2.4",
+    "terser": "^5.46.2"
+  }
+}
