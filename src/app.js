@@ -6,6 +6,8 @@ let allProducts = [];
 let filteredProducts = [];
 let displayedCount = 10;
 const itemsPerLoad = 10;
+const CACHE_KEY = "katalog_data";
+const CACHE_EXPIRY = 10 * 60 * 1000;
 
 // DOM Elements
 const container = document.getElementById('linksContainer');
@@ -18,21 +20,40 @@ const loadMoreContainer = document.getElementById('loadMoreContainer');
  * Mengambil data dari Google Sheets
  */
 async function fetchProducts() {
+    const cachedData = localStorage.getItem(CACHE_KEY);
+    const cachedTime = localStorage.getItem(`${CACHE_KEY}_time`);
+    const now = new Date().getTime();
+
+    // Cek apakah ada cache dan belum kedaluwarsa
+    if (cachedData && cachedTime && (now - cachedTime < CACHE_EXPIRY)) {
+        console.log("Memuat data dari LocalStorage...");
+        allProducts = JSON.parse(cachedData);
+        filteredProducts = allProducts;
+        renderProducts();
+        loader.classList.add('hidden');
+        return;
+    }
+
+    // Jika tidak ada cache atau sudah kedaluwarsa, ambil dari API
     try {
+        console.log("Mengambil data baru dari Google Sheets...");
         const response = await fetch(SHEET_API_URL);
         const data = await response.json();
         
-        // Transform data: Tambahkan No urut (displayId)
         allProducts = data.map((item, index) => ({
             ...item,
             noIndex: String(index + 1).padStart(2, '0')
         }));
-        
+
+        // Simpan ke LocalStorage
+        localStorage.setItem(CACHE_KEY, JSON.stringify(allProducts));
+        localStorage.setItem(`${CACHE_KEY}_time`, now.toString());
+
         filteredProducts = allProducts;
         renderProducts();
     } catch (error) {
         console.error("Gagal memuat produk:", error);
-        container.innerHTML = `<p class="text-center text-rose-400 py-10 text-xs italic">Koneksi gagal atau data tidak ditemukan.</p>`;
+        container.innerHTML = `<p class="text-center text-rose-400 py-10 text-xs italic">Koneksi gagal.</p>`;
     } finally {
         loader.classList.add('hidden');
     }
