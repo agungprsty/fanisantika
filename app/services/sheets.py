@@ -2,15 +2,30 @@
 
 import datetime
 import json
+import os
 
 import gspread
 from google.oauth2.service_account import Credentials
 
 
 def _get_client(credentials_json: str) -> gspread.Client:
-    """Create a gspread client from a JSON string or dict."""
+    """Create a gspread client from a JSON string, dict, or file path.
+
+    Supports three formats for GOOGLE_SHEETS_CREDENTIALS:
+      1. A raw JSON object (string or dict)
+      2. A path to a .json file (e.g. "service_account.json")
+    """
     if isinstance(credentials_json, str):
-        credentials_dict = json.loads(credentials_json)
+        # Check if it looks like a file path (ends with .json or exists as file)
+        if credentials_json.endswith(".json") and os.path.isfile(credentials_json):
+            with open(credentials_json, "r") as f:
+                credentials_dict = json.load(f)
+        elif credentials_json.startswith("{"):
+            # Try parsing as JSON string
+            normalized = credentials_json.replace("\\n", "\n")
+            credentials_dict = json.loads(normalized)
+        else:
+            credentials_dict = credentials_json
     else:
         credentials_dict = credentials_json
 
