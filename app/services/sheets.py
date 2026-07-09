@@ -1,15 +1,21 @@
 """Google Sheets service for reading and writing products."""
 
 import datetime
+import json
 
 import gspread
 from google.oauth2.service_account import Credentials
 
 
 def _get_client(credentials_json: str) -> gspread.Client:
-    """Create a gspread client from a JSON string."""
+    """Create a gspread client from a JSON string or dict."""
+    if isinstance(credentials_json, str):
+        credentials_dict = json.loads(credentials_json)
+    else:
+        credentials_dict = credentials_json
+
     creds = Credentials.from_service_account_info(
-        credentials_json,
+        credentials_dict,
         scopes=["https://www.googleapis.com/auth/spreadsheets"],
     )
     return gspread.authorize(creds)
