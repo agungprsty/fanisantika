@@ -2,13 +2,19 @@
 
 import datetime
 import json
-import os
-import re
+import logging
 
 import gspread
+from cachetools import TTLCache
 from google.oauth2.service_account import Credentials
 
 from app.models import Product
+
+log = logging.getLogger(__name__)
+
+# Module-level cache: key -> list[Product], TTL 60 detik
+# Cache di-share antar request dalam proses yang sama
+_products_cache: TTLCache = TTLCache(maxsize=1, ttl=60)
 
 
 def detect_type(link: str) -> str:
@@ -48,6 +54,75 @@ def get_spreadsheet(credentials_json: str, spreadsheet_id: str):
     return client.open_by_key(spreadsheet_id)
 
 
+def _cache_key(credentials_json: str, spreadsheet_id: str) -> str:
+    """Generate a deterministic cache key."""
+    return f"{hash(credentials_json)}:{spreadsheet_id}"
+
+
+def _fetch_and_cache(credentials_json: str, spreadsheet_id: str) -> list[Product]:
+    """Fetch all products from sheet, sort, store in cache, and return."""
+    worksheet = get_spreadsheet(credentials_json, spreadsheet_id).sheet1
+    rows = worksheet.get_all_records()
+
+    result = []
+    for row in rows:
+        row_data = {k.lower(): v for k, v in dict(row).items()}
+        if not row_data.get("id"):
+            row_data["id"] = 0
+        else:
+            row_data["id"] = int(row_data["id"])
+        if not row_data.get("type"):
+            row_data["type"] = detect_type(row_data.get("link", ""))
+        result.append(Product(**row_data))
+
+    result.sort(key=lambda r: r.id)
+
+    key = _cache_key(credentials_json, spreadsheet_id)
+    _products_cache[key] = result
+    return result
+
+
+def read_all_products(
+    credentials_json: str,
+    spreadsheet_id: str,
+    limit: int = 20,
+    offset: int = 0,
+    q: str = "",
+):
+    """Read products from the active sheet with caching, search & pagination.
+
+    Args:
+        credentials_json: Google service account credentials JSON string.
+        spreadsheet_id: ID of the Google Spreadsheet.
+        limit: Maximum number of products to return (default 20).
+        offset: Number of products to skip (default 0).
+        q: Optional search query — case-insensitive substring match
+           on name, id, link, or type.
+
+    Returns:
+        List of Product objects.
+    """
+    key = _cache_key(credentials_json, spreadsheet_id)
+
+    if key not in _products_cache:
+        _fetch_and_cache(credentials_json, spreadsheet_id)
+
+    products = _products_cache[key]
+
+    if q:
+        q_lower = q.lower()
+        products = [
+            p
+            for p in products
+            if q_lower in p.name.lower()
+            or q_lower in str(p.link).lower()
+            or q in str(p.id)
+            or q_lower in p.type.lower()
+        ]
+
+    return products[offset : offset + limit]
+
+
 def append_product(
     credentials_json: str,
     spreadsheet_id: str,
@@ -78,6 +153,10 @@ def append_product(
     # Write: id, name, price, link, created_at, type
     worksheet.append_row([next_no, name, price, link, created_at, product_type])
 
+    # Invalidate cache agar data baru langsung terbaca
+    key = _cache_key(credentials_json, spreadsheet_id)
+    _products_cache.pop(key, None)
+
     return Product(
         id=next_no,
         link=link,
@@ -87,32 +166,3 @@ def append_product(
         type=product_type,
     )
 
-
-def read_all_products(
-    credentials_json: str,
-    spreadsheet_id: str,
-    limit: int = 20,
-    offset: int = 0,
-):
-    """Read products from the active sheet with pagination.
-
-    Returns oldest-first (ascending) with default page of 20 items.
-    """
-    worksheet = get_spreadsheet(credentials_json, spreadsheet_id).sheet1
-    rows = worksheet.get_all_records()
-
-    result = []
-    for row in rows:
-        row_data = {k.lower(): v for k, v in dict(row).items()}
-        if not row_data.get("id"):
-            row_data["id"] = 0
-        else:
-            row_data["id"] = int(row_data["id"])
-        if not row_data.get("type"):
-            row_data["type"] = detect_type(row_data.get("link", ""))
-        result.append(Product(**row_data))
-
-    # Sort ascending (oldest first)
-    result.sort(key=lambda r: r.id)
-
-    return result[offset : offset + limit]
