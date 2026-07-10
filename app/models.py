@@ -6,7 +6,7 @@ from pydantic import BaseModel, Field
 class Product(BaseModel):
     """Represents a single product entry."""
 
-    no: str
+    no: int
     link: str
     nama: str = ""
     harga: str = ""

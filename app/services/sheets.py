@@ -7,6 +7,8 @@ import os
 import gspread
 from google.oauth2.service_account import Credentials
 
+from app.models import Product
+
 
 def _get_client(credentials_json: str) -> gspread.Client:
     """Create a gspread client from a JSON string or dict."""
@@ -37,24 +39,31 @@ def append_product(
 ):
     """Append a new product row to the active sheet.
 
-    Returns the created Product dict with auto-generated no and timestamp.
+    Column layout (row 1 is header):
+      B = nama
+      C = harga
+      D = link
+      E = created_at
+
+    Returns a Product object with auto-generated no and timestamp.
     """
     worksheet = get_spreadsheet(credentials_json, spreadsheet_id).sheet1
 
-    # Get current max row number for sequential "No"
+    # Get current max row number for sequential "No" (row 1 is header)
     all_rows = worksheet.get_all_values()
-    next_no = len(all_rows) + 1 if all_rows else 1
+    next_no = int(len(all_rows))
     timestamp = datetime.datetime.now(datetime.timezone.utc).isoformat()
 
-    worksheet.append_row([str(next_no), link, nama, harga, timestamp])
+    # Write: no, nama, harga, link, created_at
+    worksheet.append_row([next_no, nama, harga, link, timestamp])
 
-    return {
-        "no": str(next_no),
-        "link": link,
-        "nama": nama,
-        "harga": harga,
-        "timestamp": timestamp,
-    }
+    return Product(
+        no=next_no,
+        link=link,
+        nama=nama,
+        harga=harga,
+        timestamp=timestamp,
+    )
 
 
 def read_all_products(credentials_json: str, spreadsheet_id: str):

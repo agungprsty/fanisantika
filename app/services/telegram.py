@@ -8,7 +8,7 @@ from fastapi.responses import JSONResponse
 
 from app.config import settings
 from app.models import Product, TelegramMessage, WebhookResponse
-from app.services.sheets import append_product
+from app.services.sheets import Product, append_product
 
 log = logging.getLogger(__name__)
 router = APIRouter()
@@ -43,7 +43,7 @@ def _format_reply(product: Product, chat_id: str) -> dict:
         text += f"💰 <b>Harga:</b> {product.harga}\n"
     text += f"\n<i>{product.timestamp}</i>"
 
-    return WebhookResponse(chat_id=chat_id, text=text)
+    return {"chat_id": chat_id, "text": text}
 
 
 @router.post("/webhook")
