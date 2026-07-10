@@ -40,12 +40,26 @@ src/
 
 ## Telegram Message Format
 
-User sends: `link, nama (opsional), harga (opsional)`
+User sends: `link, nama (wajib), harga (opsional)`
+
+**Nama produk wajib diisi.** Jika tidak ada nama, bot akan menolak.
 
 Examples:
-- `https://shopee.co.id/x/123` → link only
+- `https://shopee.co.id/x/123, Serum Wajah, 45000` → link + nama + harga
 - `https://shopee.co.id/x/123, Serum Wajah` → link + nama
-- `https://shopee.co.id/x/123, Serum Wajah, 45000` → full data
+- `/add https://shopee.co.id/x/123, Serum Wajah, 45000` → via command
+
+Non-link text (e.g. "Halo", "Jam tangan") → bot balas help.
+
+## Telegram Bot Commands
+
+Register these via BotFather (`/setcommands`):
+
+| Command | Description |
+|---------|-------------|
+| `/add` | Simpan produk baru (format: /add link, nama, harga) |
+| `/help` | Tampilkan panduan penggunaan |
+| `/start` | Mulai interaksi dengan bot |
 
 ## Google Sheets Structure
 
