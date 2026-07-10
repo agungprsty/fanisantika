@@ -90,14 +90,16 @@ def _format_reply(product: Product, chat_id: str) -> dict:
     text += f"\n🏷️ <b>Type:</b> {product.type}\n"
     text += f"\n<i>{product.created_at}</i>"
 
-    return {"chat_id": chat_id, "text": text}
+    return {"method": "sendMessage", "chat_id": chat_id, "text": text, "parse_mode": "HTML"}
 
 
 def _format_error(message: str, chat_id: str) -> dict:
     """Format an error reply."""
     return {
+        "method": "sendMessage",
         "chat_id": chat_id,
         "text": f"<b>❌ Gagal menyimpan produk</b>\n\n{message}\n\n/help — Bantuan",
+        "parse_mode": "HTML",
     }
 
 
@@ -124,13 +126,23 @@ async def webhook(request: Request):
         if command in ("/start",):
             return JSONResponse(
                 status_code=200,
-                content={"chat_id": chat_id, "text": _build_welcome_text()},
+                content={
+                    "method": "sendMessage",
+                    "chat_id": chat_id,
+                    "text": _build_welcome_text(),
+                    "parse_mode": "HTML",
+                },
             )
 
         if command in ("/help",):
             return JSONResponse(
                 status_code=200,
-                content={"chat_id": chat_id, "text": _build_help_text()},
+                content={
+                    "method": "sendMessage",
+                    "chat_id": chat_id,
+                    "text": _build_help_text(),
+                    "parse_mode": "HTML",
+                },
             )
 
         if command in ("/add",):
@@ -190,7 +202,12 @@ async def webhook(request: Request):
     if not _contains_url(text):
         return JSONResponse(
             status_code=200,
-            content={"chat_id": chat_id, "text": _build_help_text()},
+            content={
+                "method": "sendMessage",
+                "chat_id": chat_id,
+                "text": _build_help_text(),
+                "parse_mode": "HTML",
+            },
         )
 
     parsed = _parse_message(text)
