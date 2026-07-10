@@ -88,8 +88,16 @@ def append_product(
     )
 
 
-def read_all_products(credentials_json: str, spreadsheet_id: str):
-    """Read all products from the active sheet, newest first."""
+def read_all_products(
+    credentials_json: str,
+    spreadsheet_id: str,
+    limit: int = 20,
+    offset: int = 0,
+):
+    """Read products from the active sheet with pagination.
+
+    Returns oldest-first (ascending) with default page of 20 items.
+    """
     worksheet = get_spreadsheet(credentials_json, spreadsheet_id).sheet1
     rows = worksheet.get_all_records()
 
@@ -104,4 +112,7 @@ def read_all_products(credentials_json: str, spreadsheet_id: str):
             row_data["type"] = detect_type(row_data.get("link", ""))
         result.append(Product(**row_data))
 
-    return sorted(result, key=lambda r: r.id, reverse=True)
+    # Sort ascending (oldest first)
+    result.sort(key=lambda r: r.id)
+
+    return result[offset : offset + limit]

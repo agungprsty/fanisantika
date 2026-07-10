@@ -25,7 +25,10 @@ async def homepage(request: Request):
     """Render the homepage with latest products."""
     try:
         products = read_all_products(
-            settings.GOOGLE_SHEETS_CREDENTIALS, settings.SPREADSHEET_ID
+            settings.GOOGLE_SHEETS_CREDENTIALS,
+            settings.SPREADSHEET_ID,
+            limit=20,
+            offset=0,
         )
     except Exception as e:
         log.error(f"Failed to load products: {e}")
@@ -33,17 +36,31 @@ async def homepage(request: Request):
 
     return templates.TemplateResponse(
         "index.html",
-        {"request": request, "products": products[:20]},  # show latest 20
+        {"request": request, "products": products},
     )
 
 
 @app.get("/api/products")
-async def api_products():
-    """Return all products as JSON."""
+async def api_products(limit: int = 20, offset: int = 0, q: str = ""):
+    """Return paginated products as JSON."""
     try:
-        products = read_all_products(
-            settings.GOOGLE_SHEETS_CREDENTIALS, settings.SPREADSHEET_ID
-        )
+        if q:
+            # When searching, fetch all products and filter server-side
+            from app.services.sheets import read_all_products as _read_all
+            products = _read_all(
+                settings.GOOGLE_SHEETS_CREDENTIALS,
+                settings.SPREADSHEET_ID,
+                limit=9999,
+                offset=0,
+            )
+            products = [p for p in products if q in p.name.lower() or str(q) in str(p.id)]
+        else:
+            products = read_all_products(
+                settings.GOOGLE_SHEETS_CREDENTIALS,
+                settings.SPREADSHEET_ID,
+                limit=limit,
+                offset=offset,
+            )
     except Exception as e:
         log.error(f"Failed to load products for API: {e}")
         products = []

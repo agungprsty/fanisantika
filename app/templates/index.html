@@ -137,45 +137,122 @@
     </div>
 
     <script>
-        // Client-side loading for JS-enhanced experience
         const container = document.getElementById('linksContainer');
         const loader = document.getElementById('loading');
         const searchInput = document.getElementById('searchInput');
         const loadMoreBtn = document.getElementById('loadMoreBtn');
         const loadMoreContainer = document.getElementById('loadMoreContainer');
 
-        let allProducts = [];
-        let displayedCount = 10;
-        const itemsPerLoad = 10;
+        let offset = 20;
+        let isLoading = false;
+        const itemsPerLoad = 20;
+        let searchQuery = '';
+        let searchTerm = '';
 
-        // Load remaining products via API
-        async function fetchRemainingProducts() {
-            try {
-                const response = await fetch('/api/products');
-                const data = await response.json();
-                allProducts = data.map((item, index) => ({ ...item, noIndex: String(index + 1).padStart(2, '0') }));
-            } catch (e) {
-                console.log('Using server-rendered products');
+        // Hide loader if server-rendered products exist, show load more button
+        if (container.querySelectorAll('a').length > 0) {
+            loader.classList.add('hidden');
+            loadMoreContainer.classList.remove('hidden');
+        }
+
+        function createProductElement(item) {
+            const a = document.createElement('a');
+            a.href = item.link;
+            a.target = '_blank';
+            a.className = 'group flex items-center py-6 border-b border-black/5 hover:bg-white/30 transition-all duration-300 px-2 rounded-lg';
+
+            let nameHtml = item.name;
+            if (searchTerm) {
+                const regex = new RegExp(`(${searchTerm})`, 'gi');
+                nameHtml = nameHtml.replace(regex, '<mark class="bg-yellow-200 rounded">$1</mark>');
+            }
+
+            a.innerHTML = `
+                <div class="w-12 flex-shrink-0 text-center">
+                    <span class="text-rose-700 italic font-medium text-lg group-hover:scale-110 inline-block transition-transform">${item.id}</span>
+                </div>
+                <div class="h-10 w-[1px] bg-black/10 mx-4"></div>
+                <div class="flex-grow">
+                    <h2 class="text-rose-800 font-bold text-[13px] sm:text-sm uppercase tracking-wider group-hover:translate-x-1 transition-transform duration-300">
+                        ${nameHtml}
+                        ${item.price ? `<span class="ml-2 font-normal text-rose-400">${item.price}</span>` : ''}
+                    </h2>
+                </div>
+                <div class="text-rose-200 group-hover:text-rose-500 transition-colors px-2">
+                    <svg xmlns="http://www.w3.org/2000/svg" class="h-4 w-4" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 5l7 7-7 7"/></svg>
+                </div>
+            `;
+            return a;
+        }
+
+        async function fetchProducts(query = '', limit = itemsPerLoad, offsetVal = 0) {
+            let url = `/api/products?limit=${limit}&offset=${offsetVal}`;
+            if (query) url += `&q=${encodeURIComponent(query)}`;
+            return fetch(url).then(r => r.json());
+        }
+
+        async function loadInitialProducts() {
+            const data = await fetchProducts(searchTerm, itemsPerLoad, 0);
+            container.innerHTML = '';
+            if (data.length === 0 && searchTerm) {
+                container.innerHTML = '<p class="text-center text-rose-300 py-10 text-xs italic">Produk tidak ditemukan...</p>';
+            } else {
+                data.forEach(item => container.appendChild(createProductElement(item)));
+            }
+
+            if (data.length >= itemsPerLoad) {
+                loadMoreContainer.classList.remove('hidden');
+            } else {
+                loadMoreContainer.classList.add('hidden');
             }
         }
 
-        // Search functionality
+        async function fetchRemainingProducts() {
+            if (isLoading) return;
+            isLoading = true;
+            loadMoreBtn.textContent = 'Memuat...';
+
+            try {
+                const data = await fetchProducts(searchTerm, itemsPerLoad, offset);
+                let hasData = false;
+
+                data.forEach(item => {
+                    container.appendChild(createProductElement(item));
+                    hasData = true;
+                });
+
+                if (hasData) {
+                    offset += data.length;
+                    if (data.length < itemsPerLoad) {
+                        loadMoreContainer.classList.add('hidden');
+                    }
+                } else {
+                    loadMoreContainer.classList.add('hidden');
+                }
+            } catch (e) {
+                console.error('Failed to fetch products:', e);
+            } finally {
+                isLoading = false;
+                loadMoreBtn.textContent = 'Tampilkan Lebih Banyak';
+            }
+        }
+
+        let searchTimeout;
         searchInput.addEventListener('input', (e) => {
-            const keyword = e.target.value.toLowerCase().trim();
-            const items = container.querySelectorAll('a');
-            items.forEach(item => {
-                const text = item.textContent.toLowerCase();
-                item.style.display = text.includes(keyword) ? 'flex' : 'none';
-            });
-        });
-
-        // Load more button
-        loadMoreBtn.addEventListener('click', () => {
+            clearTimeout(searchTimeout);
+            searchTerm = e.target.value.toLowerCase().trim();
+            offset = itemsPerLoad;
             loadMoreContainer.classList.add('hidden');
+
+            searchTimeout = setTimeout(async () => {
+                loader.classList.remove('hidden');
+                container.innerHTML = '';
+                await loadInitialProducts();
+                loader.classList.add('hidden');
+            }, 300);
         });
 
-        // Initial fetch
-        fetchRemainingProducts();
+        loadMoreBtn.addEventListener('click', fetchRemainingProducts);
     </script>
 </body>
 </html>
