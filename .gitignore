@@ -16,3 +16,4 @@ venv/
 *.swo
 
 my-project*.json
+service_account.json
