@@ -11,6 +11,7 @@ class Product(BaseModel):
     nama: str = ""
     harga: str = ""
     timestamp: str = ""
+    type: str = "other"
 
 
 class TelegramMessage(BaseModel):

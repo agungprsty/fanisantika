@@ -41,6 +41,7 @@ def _format_reply(product: Product, chat_id: str) -> dict:
         text += f"📦 <b>Nama:</b> {product.nama}\n"
     if product.harga:
         text += f"💰 <b>Harga:</b> {product.harga}\n"
+    text += f"\n🏷️ <b>Type:</b> {product.type}\n"
     text += f"\n<i>{product.timestamp}</i>"
 
     return {"chat_id": chat_id, "text": text}
