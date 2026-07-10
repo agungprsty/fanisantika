@@ -1,0 +1,258 @@
+<!DOCTYPE html>
+<html lang="id">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+
+    <title>Welcome To My Aesthetic Nook! - Racun Shopee Aesthetic</title>
+    <meta name="description" content="Koleksi rekomendasi produk pilihan terbaik untuk kebutuhan sehari-hari. Cek link racun Shopee aesthetic di sini!">
+    <meta name="keywords" content="shopee haul, racun shopee, katalog produk, belanja online">
+    <meta name="author" content="Agung Prasetyo">
+
+    <meta property="og:type" content="website">
+    <meta property="og:url" content="https://agungprsty.github.io/fanisantika/">
+    <meta property="og:title" content="Racun Shopee Aesthetic 💗">
+    <meta property="og:description" content="Cek koleksi produk pilihan terbaik dengan harga terjangkau.">
+
+    <!-- Favicon -->
+    <link rel="icon" href="data:image/svg+xml,<svg xmlns=%22http://www.w3.org/2000/svg%22 viewBox=%220 0 100 100%22><text y=%22.9em%22 font-size=%2290%22>💗</text></svg>">
+
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+    <link href="https://fonts.googleapis.com/css2?family=Playball&family=Montserrat:wght@400;700&display=swap" rel="stylesheet">
+
+    <!-- Tailwind CSS v4 via CDN -->
+    <script src="https://cdn.tailwindcss.com"></script>
+    <script>
+        tailwind.config = {
+            theme: {
+                extend: {
+                    colors: {
+                        'soft-pink': '#FFF1F2',
+                        'main-pink': '#FB7185',
+                        'deep-pink': '#BE123C',
+                    },
+                    fontFamily: {
+                        cursive: ['Playball', 'cursive'],
+                    },
+                },
+            },
+        };
+    </script>
+
+    <style>
+        .loader {
+            border: 3px solid #f3f3f3;
+            border-top: 3px solid var(--deep-pink);
+            border-radius: 50%;
+            width: 24px;
+            height: 24px;
+            animation: spin 1s linear infinite;
+        }
+
+        @keyframes spin {
+            0% { transform: rotate(0deg); }
+            100% { transform: rotate(360deg); }
+        }
+
+        ::-webkit-scrollbar { width: 5px; }
+        ::-webkit-scrollbar-track { background: var(--soft-pink); }
+        ::-webkit-scrollbar-thumb {
+            background: var(--main-pink);
+            border-radius: 10px;
+        }
+    </style>
+</head>
+<body class="min-h-screen flex flex-col items-center py-12 px-6">
+    <div class="w-full max-w-md">
+        <!-- Header -->
+        <header class="text-center mb-10">
+            <h1 class="text-base text-rose-700 font-cursive mb-2">
+                WELCOME TO MY AESTHETIC NOOK!
+            </h1>
+            <p class="text-[10px] uppercase tracking-[0.2em] text-rose-400 font-semibold">Spill link racun setiap hari 💗</p>
+        </header>
+
+        <!-- Search Bar -->
+        <div class="relative mb-8 group">
+            <input
+                type="text"
+                id="searchInput"
+                placeholder="Cari No 1 atau Nama Produk..."
+                class="w-full bg-white/60 backdrop-blur-md py-4 px-6 rounded-2xl shadow-sm border border-rose-100 focus:outline-none focus:ring-2 focus:ring-rose-300 focus:bg-white transition-all duration-300 text-sm"
+            >
+            <div class="absolute right-4 top-4 text-rose-300 group-focus-within:text-rose-500 transition-colors">
+                <svg xmlns="http://www.w3.org/2000/svg" class="h-5 w-5" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M21 21l-6-6m2-5a7 7 0 11-14 0 7 7 0 0114 0z" />
+                </svg>
+            </div>
+        </div>
+
+        <!-- Catalog Container -->
+        <div id="loading" class="flex justify-center py-10">
+            <div class="loader"></div>
+        </div>
+
+        <div id="linksContainer" class="space-y-0 border-t border-black/10">
+            {% for product in products %}
+            <a href="{{ product.link }}" target="_blank" class="group flex items-center py-6 border-b border-black/5 hover:bg-white/30 transition-all duration-300 px-2 rounded-lg">
+                <div class="w-12 flex-shrink-0 text-center">
+                    <span class="text-rose-700 italic font-medium text-lg group-hover:scale-110 inline-block transition-transform">
+                        {{ product.id }}
+                    </span>
+                </div>
+                <div class="h-10 w-[1px] bg-black/10 mx-4"></div>
+                <div class="flex-grow">
+                    <h2 class="text-rose-800 font-bold text-[13px] sm:text-sm uppercase tracking-wider group-hover:translate-x-1 transition-transform duration-300">
+                        {{ product.name }}
+                        {% if product.price %}
+                            <span class="ml-2 font-normal text-rose-400">{{ product.price }}</span>
+                        {% endif %}
+                    </h2>
+                </div>
+                <div class="text-rose-200 group-hover:text-rose-500 transition-colors px-2">
+                    <svg xmlns="http://www.w3.org/2000/svg" class="h-4 w-4" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 5l7 7-7 7" />
+                    </svg>
+                </div>
+            </a>
+            {% else %}
+            <p class="text-center text-rose-300 py-10 text-xs italic">Produk tidak ditemukan...</p>
+            {% endfor %}
+        </div>
+
+        <!-- Load More Button -->
+        <div id="loadMoreContainer" class="mt-8 flex justify-center hidden">
+            <button id="loadMoreBtn" class="bg-white border border-rose-200 text-rose-600 px-8 py-2 rounded-full shadow-sm hover:bg-rose-50 transition-colors text-sm font-semibold">
+                Tampilkan Lebih Banyak
+            </button>
+        </div>
+
+        <!-- Footer -->
+        <footer class="mt-16 text-center">
+            <div class="h-[1px] w-12 bg-rose-200 mx-auto mb-4"></div>
+            <p class="text-[11px] text-rose-400 font-medium tracking-widest uppercase mb-1">Dibuat dengan 💗 di Lampung</p>
+            <p class="text-[10px] text-rose-300 italic">&copy; 2026 Farghani Dev</p>
+        </footer>
+    </div>
+
+    <script>
+        const container = document.getElementById('linksContainer');
+        const loader = document.getElementById('loading');
+        const searchInput = document.getElementById('searchInput');
+        const loadMoreBtn = document.getElementById('loadMoreBtn');
+        const loadMoreContainer = document.getElementById('loadMoreContainer');
+
+        let offset = 20;
+        let isLoading = false;
+        const itemsPerLoad = 20;
+        let searchQuery = '';
+        let searchTerm = '';
+
+        // Hide loader if server-rendered products exist, show load more button
+        if (container.querySelectorAll('a').length > 0) {
+            loader.classList.add('hidden');
+            loadMoreContainer.classList.remove('hidden');
+        }
+
+        function createProductElement(item) {
+            const a = document.createElement('a');
+            a.href = item.link;
+            a.target = '_blank';
+            a.className = 'group flex items-center py-6 border-b border-black/5 hover:bg-white/30 transition-all duration-300 px-2 rounded-lg';
+
+            let nameHtml = item.name;
+            if (searchTerm) {
+                const regex = new RegExp(`(${searchTerm})`, 'gi');
+                nameHtml = nameHtml.replace(regex, '<mark class="bg-yellow-200 rounded">$1</mark>');
+            }
+
+            a.innerHTML = `
+                <div class="w-12 flex-shrink-0 text-center">
+                    <span class="text-rose-700 italic font-medium text-lg group-hover:scale-110 inline-block transition-transform">${item.id}</span>
+                </div>
+                <div class="h-10 w-[1px] bg-black/10 mx-4"></div>
+                <div class="flex-grow">
+                    <h2 class="text-rose-800 font-bold text-[13px] sm:text-sm uppercase tracking-wider group-hover:translate-x-1 transition-transform duration-300">
+                        ${nameHtml}
+                        ${item.price ? `<span class="ml-2 font-normal text-rose-400">${item.price}</span>` : ''}
+                    </h2>
+                </div>
+                <div class="text-rose-200 group-hover:text-rose-500 transition-colors px-2">
+                    <svg xmlns="http://www.w3.org/2000/svg" class="h-4 w-4" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 5l7 7-7 7"/></svg>
+                </div>
+            `;
+            return a;
+        }
+
+        async function fetchProducts(query = '', limit = itemsPerLoad, offsetVal = 0) {
+            let url = `/api/products?limit=${limit}&offset=${offsetVal}`;
+            if (query) url += `&q=${encodeURIComponent(query)}`;
+            return fetch(url).then(r => r.json());
+        }
+
+        async function loadInitialProducts() {
+            const data = await fetchProducts(searchTerm, itemsPerLoad, 0);
+            container.innerHTML = '';
+            if (data.length === 0 && searchTerm) {
+                container.innerHTML = '<p class="text-center text-rose-300 py-10 text-xs italic">Produk tidak ditemukan...</p>';
+            } else {
+                data.forEach(item => container.appendChild(createProductElement(item)));
+            }
+
+            if (data.length >= itemsPerLoad) {
+                loadMoreContainer.classList.remove('hidden');
+            } else {
+                loadMoreContainer.classList.add('hidden');
+            }
+        }
+
+        async function fetchRemainingProducts() {
+            if (isLoading) return;
+            isLoading = true;
+            loadMoreBtn.textContent = 'Memuat...';
+
+            try {
+                const data = await fetchProducts(searchTerm, itemsPerLoad, offset);
+                let hasData = false;
+
+                data.forEach(item => {
+                    container.appendChild(createProductElement(item));
+                    hasData = true;
+                });
+
+                if (hasData) {
+                    offset += data.length;
+                    if (data.length < itemsPerLoad) {
+                        loadMoreContainer.classList.add('hidden');
+                    }
+                } else {
+                    loadMoreContainer.classList.add('hidden');
+                }
+            } catch (e) {
+                console.error('Failed to fetch products:', e);
+            } finally {
+                isLoading = false;
+                loadMoreBtn.textContent = 'Tampilkan Lebih Banyak';
+            }
+        }
+
+        let searchTimeout;
+        searchInput.addEventListener('input', (e) => {
+            clearTimeout(searchTimeout);
+            searchTerm = e.target.value.toLowerCase().trim();
+            offset = itemsPerLoad;
+            loadMoreContainer.classList.add('hidden');
+
+            searchTimeout = setTimeout(async () => {
+                loader.classList.remove('hidden');
+                container.innerHTML = '';
+                await loadInitialProducts();
+                loader.classList.add('hidden');
+            }, 300);
+        });
+
+        loadMoreBtn.addEventListener('click', fetchRemainingProducts);
+    </script>
+</body>
+</html>
