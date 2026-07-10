@@ -6,11 +6,11 @@ from pydantic import BaseModel, Field
 class Product(BaseModel):
     """Represents a single product entry."""
 
-    no: int
+    id: int
     link: str
-    nama: str = ""
-    harga: str = ""
-    timestamp: str = ""
+    name: str = ""
+    price: str = ""
+    created_at: str = ""
     type: str = "other"
 
 

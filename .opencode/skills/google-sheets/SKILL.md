@@ -27,6 +27,6 @@ Use this when:
 - Credentials can be passed as inline JSON string (for Vercel env vars) or file path
 - Use `gc.open_by_key(SPREADSHEET_ID)` to open the target spreadsheet
 - Active worksheet: `worksheet = spreadsheet.sheet1`
-- Append row: `worksheet.append_row([no, link, nama, harga, timestamp])`
+- Append row: `worksheet.append_row([no/id, link, nama, harga, timestamp])`
 - Read all data: `worksheet.get_all_records()` for dict-based access
 - Handle empty cells gracefully (use defaults for optional fields)

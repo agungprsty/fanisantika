@@ -8,7 +8,6 @@ from fastapi.responses import HTMLResponse
 from fastapi.templating import Jinja2Templates
 
 from app.config import settings
-from app.models import Product
 from app.services.sheets import read_all_products
 from app.services.telegram import router as webhook_router
 

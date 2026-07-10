@@ -22,10 +22,10 @@ def _parse_message(text: str) -> dict:
     """
     parts = [p.strip() for p in text.split(",")]
     link = parts[0] if len(parts) > 0 else ""
-    nama = parts[1] if len(parts) > 1 else ""
-    harga = parts[2] if len(parts) > 2 else ""
+    name = parts[1] if len(parts) > 1 else ""
+    price = parts[2] if len(parts) > 2 else ""
 
-    return {"link": link, "nama": nama, "harga": harga}
+    return {"link": link, "name": name, "price": price}
 
 
 def _validate_link(link: str) -> bool:
@@ -37,12 +37,12 @@ def _format_reply(product: Product, chat_id: str) -> dict:
     """Format a Telegram reply message."""
     text = f"<b>Produk berhasil disimpan!</b>\n\n"
     text += f"🔗 <b>Link:</b> {product.link}\n"
-    if product.nama:
-        text += f"📦 <b>Nama:</b> {product.nama}\n"
-    if product.harga:
-        text += f"💰 <b>Harga:</b> {product.harga}\n"
+    if product.name:
+        text += f"📦 <b>Nama:</b> {product.name}\n"
+    if product.price:
+        text += f"💰 <b>Harga:</b> {product.price}\n"
     text += f"\n🏷️ <b>Type:</b> {product.type}\n"
-    text += f"\n<i>{product.timestamp}</i>"
+    text += f"\n<i>{product.created_at}</i>"
 
     return {"chat_id": chat_id, "text": text}
 
@@ -75,7 +75,7 @@ async def webhook(request: Request):
         return JSONResponse(
             status_code=200,
             content=_format_reply(
-                Product(link=parsed["link"], nama="", harga=""), message.chat_id
+                Product(link=parsed["link"], name="", price=""), message.chat_id
             ),
         )
 
@@ -84,8 +84,8 @@ async def webhook(request: Request):
         credentials_json=settings.GOOGLE_SHEETS_CREDENTIALS,
         spreadsheet_id=settings.SPREADSHEET_ID,
         link=parsed["link"],
-        nama=parsed["nama"],
-        harga=parsed["harga"],
+        name=parsed["name"],
+        price=parsed["price"],
     )
 
     return JSONResponse(

@@ -52,38 +52,38 @@ def append_product(
     credentials_json: str,
     spreadsheet_id: str,
     link: str,
-    nama: str = "",
-    harga: str = "",
+    name: str = "",
+    price: str = "",
 ):
     """Append a new product row to the active sheet.
 
     Column layout (row 1 is header):
-      A = No
-      B = nama
-      C = harga
+      A = id
+      B = name
+      C = price
       D = link
       E = created_at
       F = type (shopee, tokopedia, etc.)
 
-    Returns a Product object with auto-generated no and timestamp.
+    Returns a Product object with auto-generated id and created_at.
     """
     worksheet = get_spreadsheet(credentials_json, spreadsheet_id).sheet1
 
     # Get current max row number for sequential "No" (row 1 is header)
     all_rows = worksheet.get_all_values()
     next_no = int(len(all_rows))
-    timestamp = datetime.datetime.now(datetime.timezone.utc).isoformat()
+    created_at = datetime.datetime.now(datetime.timezone.utc).isoformat()
     product_type = detect_type(link)
 
-    # Write: no, nama, harga, link, created_at, type
-    worksheet.append_row([next_no, nama, harga, link, timestamp, product_type])
+    # Write: id, name, price, link, created_at, type
+    worksheet.append_row([next_no, name, price, link, created_at, product_type])
 
     return Product(
-        no=next_no,
+        id=next_no,
         link=link,
-        nama=nama,
-        harga=harga,
-        timestamp=timestamp,
+        name=name,
+        price=price,
+        created_at=created_at,
         type=product_type,
     )
 
@@ -93,12 +93,15 @@ def read_all_products(credentials_json: str, spreadsheet_id: str):
     worksheet = get_spreadsheet(credentials_json, spreadsheet_id).sheet1
     rows = worksheet.get_all_records()
 
-    # Sort by no descending (newest first)
-    products = sorted(rows, key=lambda r: int(r.get("No", 0)), reverse=True)
     result = []
-    for row in products:
-        row_data = dict(row)
-        if "Type" not in row_data or not row_data.get("Type"):
-            row_data["type"] = detect_type(row_data.get("Link", ""))
+    for row in rows:
+        row_data = {k.lower(): v for k, v in dict(row).items()}
+        if not row_data.get("id"):
+            row_data["id"] = 0
+        else:
+            row_data["id"] = int(row_data["id"])
+        if not row_data.get("type"):
+            row_data["type"] = detect_type(row_data.get("link", ""))
         result.append(Product(**row_data))
-    return result
+
+    return sorted(result, key=lambda r: r.id, reverse=True)
