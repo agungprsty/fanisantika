@@ -7,9 +7,9 @@ from fastapi import FastAPI, Request
 from fastapi.responses import HTMLResponse
 from fastapi.templating import Jinja2Templates
 
-from app.config import settings
-from app.services.sheets import read_all_products
-from app.services.telegram import router as webhook_router
+from src.config import settings
+from src.services.sheets import read_all_products
+from src.services.telegram import router as webhook_router
 
 logging.basicConfig(level=logging.INFO)
 log = logging.getLogger(__name__)

@@ -21,7 +21,7 @@ Katalog produk affiliate dengan FastAPI backend — menerima data via Telegram b
 
 ```text
 affiliate-katalog/
-├── app/                   # FastAPI application
+├── src/                   # FastAPI application
 │   ├── main.py            # Entry point + routes
 │   ├── models.py          # Pydantic models
 │   ├── config.py          # Environment settings
@@ -63,7 +63,7 @@ cp .env.example .env
 
 4. Jalankan server:
 ```bash
-uvicorn app.main:app --reload --port 8000
+uvicorn src.main:app --reload --port 8000
 ```
 
 5. Buka `http://localhost:8000` untuk melihat homepage.

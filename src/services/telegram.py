@@ -6,9 +6,9 @@ import re
 from fastapi import APIRouter, Request
 from fastapi.responses import JSONResponse
 
-from app.config import settings
-from app.models import Product, TelegramMessage, WebhookResponse
-from app.services.sheets import Product, append_product
+from src.config import settings
+from src.models import Product, TelegramMessage, WebhookResponse
+from src.services.sheets import Product, append_product
 
 log = logging.getLogger(__name__)
 router = APIRouter()

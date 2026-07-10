@@ -8,7 +8,7 @@ import gspread
 from cachetools import TTLCache
 from google.oauth2.service_account import Credentials
 
-from app.models import Product
+from src.models import Product
 
 log = logging.getLogger(__name__)
 
@@ -165,4 +165,3 @@ def append_product(
         created_at=created_at,
         type=product_type,
     )
-

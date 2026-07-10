@@ -12,7 +12,7 @@ Affiliate Katalog is a product catalog platform that:
 ## File Structure
 
 ```
-app/
+src/
 ├── main.py            # FastAPI app entry point + routes
 ├── models.py          # Pydantic data models
 ├── config.py          # Environment settings (pydantic-settings)
@@ -62,7 +62,7 @@ See `.env.example` for all required vars. Copy to `.env` before running locally.
 ```bash
 pip install -r requirements.txt
 cp .env.example .env  # then fill in your values
-uvicorn app.main:app --reload --port 8000
+uvicorn src.main:app --reload --port 8000
 ```
 
 ## Vercel Deployment

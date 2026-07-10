@@ -9,7 +9,7 @@ metadata:
 ---
 
 ## What I do
-- Scaffold FastAPI project structure (app/, api/, services/)
+- Scaffold FastAPI project structure (src/, api/, services/)
 - Configure Vercel serverless deployment with `vercel.json` and `api/index.py`
 - Set up Pydantic models for request/response validation
 - Configure Jinja2 template rendering
@@ -17,14 +17,14 @@ metadata:
 
 ## When to use me
 Use this when creating or modifying a FastAPI project. Specifically:
-- Creating new routes in `app/main.py`
-- Adding new services under `app/services/`
+- Creating new routes in `src/main.py`
+- Adding new services under `src/services/`
 - Setting up Vercel deployment configuration
-- Adding Pydantic models in `app/models.py`
+- Adding Pydantic models in `src/models.py`
 - Configuring Jinja2 templates
 
 ## Key patterns
-- Entry point for Vercel: `api/index.py` imports from `app.main`
+- Entry point for Vercel: `api/index.py` imports from `src.main`
 - Settings class: use `pydantic-settings.BaseSettings` with `.env` loading
-- Template folder: `app/templates/` auto-discovered by FastAPI's `Jinja2Templates`
+- Template folder: `src/templates/` auto-discovered by FastAPI's `Jinja2Templates`
 - Service layer: keep business logic in `services/`, keep routes thin
