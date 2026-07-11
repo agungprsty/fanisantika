@@ -16,6 +16,25 @@ log = logging.getLogger(__name__)
 # Cache di-share antar request dalam proses yang sama
 _products_cache: TTLCache = TTLCache(maxsize=1, ttl=60)
 
+# Track max ID in memory to avoid re-scanning all rows on every append
+_max_id: int = 0
+
+
+def _init_max_id(credentials_json: str, spreadsheet_id: str) -> int:
+    """Compute and cache the current max ID from Google Sheets."""
+    global _max_id
+    worksheet = get_spreadsheet(credentials_json, spreadsheet_id).sheet1
+    all_rows = worksheet.get_all_values()
+    existing_ids = [int(r[0]) for r in all_rows[1:] if r and r[0].isdigit()]
+    _max_id = max(existing_ids, default=0)
+    return _max_id
+
+
+def _reset_max_id_if_needed(credentials_json: str, spreadsheet_id: str) -> None:
+    """Reset _max_id to 0 when cache is invalidated so next append recomputes."""
+    global _max_id
+    _max_id = 0
+
 
 def detect_type(link: str) -> str:
     """Detect the platform type from a product link."""
@@ -54,6 +73,16 @@ def get_spreadsheet(credentials_json: str, spreadsheet_id: str):
     return client.open_by_key(spreadsheet_id)
 
 
+def _ensure_caption_column(worksheet):
+    """Add caption column (G) to header if it doesn't exist."""
+    header_lower = [h.lower() for h in worksheet.row_values(1)]
+    if "caption" in header_lower:
+        return
+    col_idx = len(header_lower) + 1
+    worksheet.update_cell(1, col_idx, "caption")
+    log.info("Added 'caption' column to sheet header (col %d)", col_idx)
+
+
 def _cache_key(credentials_json: str, spreadsheet_id: str) -> str:
     """Generate a deterministic cache key."""
     return f"{hash(credentials_json)}:{spreadsheet_id}"
@@ -62,6 +91,7 @@ def _cache_key(credentials_json: str, spreadsheet_id: str) -> str:
 def _fetch_and_cache(credentials_json: str, spreadsheet_id: str) -> list[Product]:
     """Fetch all products from sheet, sort, store in cache, and return."""
     worksheet = get_spreadsheet(credentials_json, spreadsheet_id).sheet1
+    _ensure_caption_column(worksheet)
     rows = worksheet.get_all_records()
 
     result = []
@@ -123,12 +153,40 @@ def read_all_products(
     return products[offset : offset + limit]
 
 
+def count_all_products(
+    credentials_json: str,
+    spreadsheet_id: str,
+    q: str = "",
+) -> int:
+    """Return total number of products (with optional search filter)."""
+    key = _cache_key(credentials_json, spreadsheet_id)
+
+    if key not in _products_cache:
+        _fetch_and_cache(credentials_json, spreadsheet_id)
+
+    products = _products_cache[key]
+
+    if q:
+        q_lower = q.lower()
+        products = [
+            p
+            for p in products
+            if q_lower in p.name.lower()
+            or q_lower in str(p.link).lower()
+            or q in str(p.id)
+            or q_lower in p.type.lower()
+        ]
+
+    return len(products)
+
+
 def append_product(
     credentials_json: str,
     spreadsheet_id: str,
     link: str,
     name: str = "",
     price: str = "",
+    caption: str = "",
 ):
     """Append a new product row to the active sheet.
 
@@ -139,23 +197,32 @@ def append_product(
       D = link
       E = created_at
       F = type (shopee, tokopedia, etc.)
+      G = caption
+
+    Args:
+        caption: Initial AI caption (empty string if not generated).
 
     Returns a Product object with auto-generated id and created_at.
     """
     worksheet = get_spreadsheet(credentials_json, spreadsheet_id).sheet1
 
-    # Get current max row number for sequential "No" (row 1 is header)
-    all_rows = worksheet.get_all_values()
-    next_no = int(len(all_rows))
+    # Ensure caption column exists
+    _ensure_caption_column(worksheet)
+
+    # Use cached max_id; recompute only if reset by a previous operation
+    if _max_id == 0:
+        _init_max_id(credentials_json, spreadsheet_id)
+    next_no = _max_id + 1
     created_at = datetime.datetime.now(datetime.timezone.utc).isoformat()
     product_type = detect_type(link)
 
-    # Write: id, name, price, link, created_at, type
-    worksheet.append_row([next_no, name, price, link, created_at, product_type])
+    # Write: id, name, price, link, created_at, type, caption
+    worksheet.append_row([next_no, name, price, link, created_at, product_type, caption])
 
     # Invalidate cache agar data baru langsung terbaca
     key = _cache_key(credentials_json, spreadsheet_id)
     _products_cache.pop(key, None)
+    _reset_max_id_if_needed(credentials_json, spreadsheet_id)
 
     return Product(
         id=next_no,
@@ -164,4 +231,90 @@ def append_product(
         price=price,
         created_at=created_at,
         type=product_type,
+        caption=caption,
     )
+
+
+def update_product(
+    credentials_json: str,
+    spreadsheet_id: str,
+    product_id: int,
+    name: str | None = None,
+    price: str | None = None,
+    caption: str | None = None,
+) -> bool:
+    """Update name (B), price (C), and/or caption (G) for a given product.
+
+    Only columns with non-None values are updated.
+    Returns True if found and updated, False otherwise.
+    """
+    worksheet = get_spreadsheet(credentials_json, spreadsheet_id).sheet1
+    all_rows = worksheet.get_all_values()
+
+    for i, row in enumerate(all_rows):
+        if i == 0:
+            continue
+        if row and row[0].isdigit() and int(row[0]) == product_id:
+            row_idx = i + 1  # 1-based
+            if name is not None:
+                worksheet.update_cell(row_idx, 2, name)  # col B
+            if price is not None:
+                worksheet.update_cell(row_idx, 3, price)  # col C
+            if caption is not None:
+                worksheet.update_cell(row_idx, 7, caption)  # col G
+            log.info("Updated product id=%d", product_id)
+
+            key = _cache_key(credentials_json, spreadsheet_id)
+            _products_cache.pop(key, None)
+            _reset_max_id_if_needed(credentials_json, spreadsheet_id)
+            return True
+
+    log.warning("Product id=%d not found for update", product_id)
+    return False
+
+
+def update_product_caption(
+    credentials_json: str,
+    spreadsheet_id: str,
+    product_id: int,
+    caption: str,
+) -> bool:
+    """Update only the caption for a given product.
+
+    Returns True if found and updated, False otherwise.
+    """
+    return update_product(
+        credentials_json=credentials_json,
+        spreadsheet_id=spreadsheet_id,
+        product_id=product_id,
+        caption=caption,
+    )
+
+
+def delete_product_row(
+    credentials_json: str,
+    spreadsheet_id: str,
+    product_id: int,
+) -> bool:
+    """Delete the entire row for a given product.
+
+    Returns True if found and deleted, False otherwise.
+    """
+    worksheet = get_spreadsheet(credentials_json, spreadsheet_id).sheet1
+    all_rows = worksheet.get_all_values()
+
+    for i, row in enumerate(all_rows):
+        if i == 0:
+            continue
+        if row and row[0].isdigit() and int(row[0]) == product_id:
+            worksheet.delete_rows(i + 1)  # 1-based row index
+            log.info("Deleted product id=%d (row %d)", product_id, i + 1)
+
+            # Invalidate cache
+            key = _cache_key(credentials_json, spreadsheet_id)
+            _products_cache.pop(key, None)
+            _reset_max_id_if_needed(credentials_json, spreadsheet_id)
+            return True
+
+    log.warning("Product id=%d not found for deletion", product_id)
+    return False

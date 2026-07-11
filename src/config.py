@@ -11,6 +11,13 @@ class Settings(BaseSettings):
     SPREADSHEET_ID: str
     APP_ENV: str = "development"
 
+    # Admin Dashboard
+    ADMIN_USERNAME: str
+    ADMIN_PASSWORD: str
+
+    OPENROUTER_API_KEY: str = ""
+    CAPTION_ENABLED: bool = True
+
     class Config:
         env_file = ".env"
         env_file_encoding = "utf-8"
