@@ -8,7 +8,7 @@ from fastapi.responses import JSONResponse
 
 from src.config import settings
 from src.models import Product
-from src.services.sheets import append_product
+from src.services.sheets import append_product, update_product
 
 log = logging.getLogger(__name__)
 router = APIRouter()
@@ -186,6 +186,24 @@ async def webhook(request: Request):
                 price=parsed["price"],
             )
 
+            if settings.CAPTION_ENABLED:
+                from src.services.ai import generate_caption
+
+                try:
+                    caption = await generate_caption(
+                        name=product.name, price=product.price,
+                        link=product.link, platform=product.type,
+                    )
+                    if caption:
+                        update_product(
+                            settings.GOOGLE_SHEETS_CREDENTIALS,
+                            settings.SPREADSHEET_ID,
+                            product.id, caption=caption,
+                        )
+                        product.caption = caption
+                except Exception:
+                    log.exception("Caption generation failed after /add")
+
             return JSONResponse(
                 status_code=200,
                 content=_format_reply(product, chat_id),
@@ -240,6 +258,24 @@ async def webhook(request: Request):
         name=parsed["name"],
         price=parsed["price"],
     )
+
+    if settings.CAPTION_ENABLED:
+        from src.services.ai import generate_caption
+
+        try:
+            caption = await generate_caption(
+                name=product.name, price=product.price,
+                link=product.link, platform=product.type,
+            )
+            if caption:
+                update_product_caption(
+                    settings.GOOGLE_SHEETS_CREDENTIALS,
+                    settings.SPREADSHEET_ID,
+                    product.id, caption,
+                )
+                product.caption = caption
+        except Exception:
+            log.exception("Caption generation failed after auto-save")
 
     return JSONResponse(
         status_code=200,

@@ -6,6 +6,8 @@ Affiliate Katalog is a product catalog platform that:
 - Receives product data via Telegram bot (`/webhook`)
 - Stores products in Google Sheets (via gspread + service account)
 - Displays latest products on the homepage (Jinja2 templates)
+- Admin dashboard with cookie-based auth for product management
+- AI-powered caption generation (Gemini API) for social media posts
 
 **Stack**: FastAPI, Python 3, Jinja2, gspread, Vercel Serverless
 
@@ -13,13 +15,18 @@ Affiliate Katalog is a product catalog platform that:
 
 ```
 src/
-├── main.py            # FastAPI app entry point + routes
+├── main.py            # FastAPI app entry point + all routes
 ├── models.py          # Pydantic data models
 ├── config.py          # Environment settings (pydantic-settings)
 ├── services/
+│   ├── ai.py          # Gemini caption generation
+│   ├── admin.py       # Admin auth (cookie-based session + CSRF)
 │   ├── telegram.py    # Telegram webhook handler
 │   └── sheets.py      # Google Sheets CRUD operations
-└── templates/         # Jinja2 HTML templates
+└── templates/
+    ├── index.html     # Homepage (public)
+    └── admin/
+        └── dashboard.html  # Admin dashboard (login, table, forms)
 ```
 
 ## Key Conventions
@@ -32,11 +39,22 @@ src/
 
 ## Routes
 
-| Method | Path | Description |
-|--------|------|-------------|
-| GET | `/` | Homepage (renders Jinja2 template with latest products) |
-| POST | `/webhook` | Telegram webhook endpoint — parse & save product messages |
-| GET | `/api/products` | JSON API returning all products (for JS fetch or testing) |
+| Method | Path | Description | Auth |
+|--------|------|-------------|------|
+| GET | `/` | Homepage (renders Jinja2 template with latest products) | No |
+| POST | `/webhook` | Telegram webhook endpoint — parse & save product messages | No |
+| GET | `/api/products` | JSON API returning all products (for JS fetch or testing) | No |
+| POST | `/api/captions/generate` | Generate caption via Gemini (for AJAX from dashboard) | No |
+| GET | `/login` | Admin login page | No |
+| POST | `/login` | Process login | No |
+| POST | `/logout` | Logout | Yes |
+| GET | `/dashboard` | Product table with search & pagination | Yes |
+| GET | `/product/add` | Add product form | Yes |
+| POST | `/product/add` | Save new product + auto-generate caption | Yes |
+| GET | `/product/{id}/edit` | Edit caption form | Yes |
+| POST | `/product/{id}/edit` | Update caption | Yes |
+| POST | `/product/{id}/regenerate` | Regenerate caption via AI | Yes |
+| POST | `/product/{id}/delete` | Delete product row from sheet | Yes |
 
 ## Telegram Message Format
 
@@ -63,9 +81,11 @@ Register these via BotFather (`/setcommands`):
 
 ## Google Sheets Structure
 
-| No | Link | Nama | Harga | Timestamp |
-|----|------|------|-------|-----------|
-| 1 | https://... | Serum Wajah | 45000 | 2026-07-09T... |
+| No | Link | Nama | Harga | Timestamp | Type | caption |
+|----|------|------|-------|-----------|------|---------|
+| 1 | https://... | Serum Wajah | 45000 | 2026-07-09T... | shopee | Caption... |
+
+Column mapping: A=id, B=name, C=price, D=link, E=created_at, F=type, G=caption
 
 ## Environment Variables
 

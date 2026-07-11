@@ -12,6 +12,7 @@ class Product(BaseModel):
     price: str = ""
     created_at: str = ""
     type: str = "other"
+    caption: str = ""
 
 
 class TelegramMessage(BaseModel):
