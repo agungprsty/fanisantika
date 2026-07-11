@@ -19,9 +19,11 @@ from src.services.admin import (
 )
 from src.services.sheets import (
     append_product,
+    count_all_products,
     delete_product_row,
     read_all_products,
     update_product,
+    update_product_caption,
 )
 from src.services.telegram import router as webhook_router
 
@@ -201,9 +203,17 @@ async def admin_dashboard(request: Request, page: int = 1, q: str = ""):
             offset=offset,
             q=q,
         )
+        total_count = count_all_products(
+            settings.GOOGLE_SHEETS_CREDENTIALS,
+            settings.SPREADSHEET_ID,
+            q=q,
+        )
     except Exception as e:
         log.error(f"Failed to load products: {e}")
         products = []
+        total_count = 0
+
+    total_pages = max(1, (total_count + limit - 1) // limit)
 
     csrf_token = generate_csrf_token()
     response = templates.TemplateResponse("admin/dashboard.html", {
@@ -215,6 +225,9 @@ async def admin_dashboard(request: Request, page: int = 1, q: str = ""):
         "user": user,
         "q": q,
         "page": page,
+        "total_count": total_count,
+        "total_pages": total_pages,
+        "limit": limit,
         "csrf_token": csrf_token,
         "error": None,
         "product": {},
@@ -282,7 +295,7 @@ async def admin_product_add_submit(request: Request):
         return response
 
     try:
-        product = append_product(
+        append_product(
             credentials_json=settings.GOOGLE_SHEETS_CREDENTIALS,
             spreadsheet_id=settings.SPREADSHEET_ID,
             link=link,
@@ -290,23 +303,6 @@ async def admin_product_add_submit(request: Request):
             price=price,
             caption=caption,
         )
-
-        if settings.CAPTION_ENABLED and not caption:
-            from src.services.ai import generate_caption
-
-            try:
-                caption = await generate_caption(
-                    name=name, price=price, link=link, platform=product.type,
-                )
-                if caption:
-                    update_product_caption(
-                        settings.GOOGLE_SHEETS_CREDENTIALS,
-                        settings.SPREADSHEET_ID,
-                        product.id,
-                        caption,
-                    )
-            except Exception as e:
-                log.error(f"Caption generation failed: {e}")
 
         return RedirectResponse(url="/dashboard", status_code=303)
 

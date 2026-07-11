@@ -118,12 +118,11 @@
                         class="w-full bg-white/80 py-3 px-4 rounded-xl border border-rose-100 focus:outline-none focus:ring-2 focus:ring-rose-300 text-sm resize-y">{{ product.get('caption', '') }}</textarea>
                 </div>
 
-                {% if settings.CAPTION_ENABLED %}
                 <button type="button" id="generateBtn" onclick="generateCaption()"
-                    class="w-full border border-rose-200 text-rose-600 font-semibold py-3 rounded-xl hover:bg-rose-50 transition-colors text-sm mb-3">
+                    class="w-full border border-rose-200 text-rose-600 font-semibold py-3 rounded-xl hover:bg-rose-50 transition-colors text-sm mb-3 {% if not (product.get('link') and product.get('name')) %}hidden{% endif %}"
+                    {% if settings.CAPTION_ENABLED %}{% else %}disabled{% endif %}>
                     ✨ Generate Caption dengan AI
                 </button>
-                {% endif %}
 
                 <button type="submit"
                     class="w-full bg-main-pink hover:bg-deep-pink text-white font-semibold py-3 rounded-xl transition-colors text-sm tracking-wider uppercase">
@@ -183,8 +182,8 @@
                         <tr class="border-b border-rose-100 text-rose-500 text-[11px] uppercase tracking-wider">
                             <th class="text-left py-4 px-4 font-semibold w-12">No</th>
                             <th class="text-left py-4 px-4 font-semibold">Nama</th>
-                            <th class="text-left py-4 px-4 font-semibold w-20">Harga</th>
-                            <th class="text-left py-4 px-4 font-semibold w-20">Type</th>
+                            <th class="text-left py-4 px-4 font-semibold w-20 hidden sm:table-cell">Harga</th>
+                            <th class="text-left py-4 px-4 font-semibold w-20 hidden sm:table-cell">Type</th>
                             <th class="text-right py-4 px-4 font-semibold w-32">Aksi</th>
                         </tr>
                     </thead>
@@ -196,8 +195,8 @@
                                 <div class="font-semibold text-rose-800 text-[13px]">{{ product.name }}</div>
                                 <div class="text-[10px] text-rose-300 truncate max-w-[200px]">{{ product.link }}</div>
                             </td>
-                            <td class="py-4 px-4 text-rose-500 text-xs">{{ product.price }}</td>
-                            <td class="py-4 px-4">
+                            <td class="py-4 px-4 text-rose-500 text-xs hidden sm:table-cell">{{ product.price }}</td>
+                            <td class="py-4 px-4 hidden sm:table-cell">
                                 <span class="inline-block bg-rose-50 text-rose-600 text-[10px] font-semibold px-2 py-1 rounded-full uppercase tracking-wider">{{ product.type }}</span>
                             </td>
                             <td class="py-4 px-4 text-right">
@@ -229,13 +228,71 @@
             </div>
         </div>
 
-        <!-- Pagination / Load More -->
-        {% if products|length >= 20 %}
-        <div class="mt-6 text-center">
-            <a href="/dashboard?page={{ page + 1 }}{% if q %}&q={{ q }}{% endif %}"
-                class="inline-block bg-white border border-rose-200 text-rose-600 px-8 py-2.5 rounded-full shadow-sm hover:bg-rose-50 transition-colors text-sm font-semibold">
-                Tampilkan Lebih Banyak
+        <!-- Pagination Info -->
+        <div class="mt-6 flex items-center justify-between text-xs text-rose-400">
+            <span>Menampilkan {{ products|length }} dari {{ total_count }} produk</span>
+            <span>Halaman {{ page }} dari {{ total_pages }}</span>
+        </div>
+
+        <!-- Pagination -->
+        {% if total_pages > 1 %}
+        <div class="mt-4 flex items-center justify-center gap-2">
+            {% if page > 1 %}
+            <a href="/dashboard?page={{ page - 1 }}{% if q %}&q={{ q }}{% endif %}"
+                class="bg-white border border-rose-200 text-rose-500 hover:bg-rose-50 px-4 py-2 rounded-lg transition-colors text-xs font-semibold">
+                &larr; Sebelumnya
             </a>
+            {% else %}
+            <span class="bg-rose-50 border border-rose-100 text-rose-300 px-4 py-2 rounded-lg text-xs cursor-not-allowed">
+                &larr; Sebelumnya
+            </span>
+            {% endif %}
+
+            {% set start_page = [page - 2, 1] | max %}
+            {% set end_page = [start_page + 4, total_pages] | min %}
+            {% set start_page = [end_page - 4, 1] | max %}
+
+            {% if start_page > 1 %}
+            <a href="/dashboard?page=1{% if q %}&q={{ q }}{% endif %}"
+                class="bg-white border border-rose-200 text-rose-500 hover:bg-rose-50 px-3 py-2 rounded-lg transition-colors text-xs">1</a>
+            {% if start_page > 2 %}
+            <span class="text-rose-300 px-1">...</span>
+            {% endif %}
+            {% endif %}
+
+            {% for p in range(start_page, end_page + 1) %}
+            {% if p == page %}
+            <span class="bg-main-pink text-white border border-main-pink px-3 py-2 rounded-lg text-xs font-bold">
+                {{ p }}
+            </span>
+            {% else %}
+            <a href="/dashboard?page={{ p }}{% if q %}&q={{ q }}{% endif %}"
+                class="bg-white border border-rose-200 text-rose-500 hover:bg-rose-50 px-3 py-2 rounded-lg transition-colors text-xs">
+                {{ p }}
+            </a>
+            {% endif %}
+            {% endfor %}
+
+            {% if end_page < total_pages %}
+            {% if end_page < total_pages - 1 %}
+            <span class="text-rose-300 px-1">...</span>
+            {% endif %}
+            <a href="/dashboard?page={{ total_pages }}{% if q %}&q={{ q }}{% endif %}"
+                class="bg-white border border-rose-200 text-rose-500 hover:bg-rose-50 px-3 py-2 rounded-lg transition-colors text-xs">
+                {{ total_pages }}
+            </a>
+            {% endif %}
+
+            {% if page < total_pages %}
+            <a href="/dashboard?page={{ page + 1 }}{% if q %}&q={{ q }}{% endif %}"
+                class="bg-white border border-rose-200 text-rose-500 hover:bg-rose-50 px-4 py-2 rounded-lg transition-colors text-xs font-semibold">
+                Selanjutnya &rarr;
+            </a>
+            {% else %}
+            <span class="bg-rose-50 border border-rose-100 text-rose-300 px-4 py-2 rounded-lg text-xs cursor-not-allowed">
+                Selanjutnya &rarr;
+            </span>
+            {% endif %}
         </div>
         {% endif %}
 
@@ -249,20 +306,32 @@
     {% endif %}
 
     <script>
+        const generateBtn = document.getElementById('generateBtn');
+
+        function updateGenerateButton() {
+            const name = document.querySelector('[name="name"]')?.value;
+            const link = document.querySelector('[name="link"]')?.value;
+            if (name && link) {
+                generateBtn.classList.remove('hidden');
+                generateBtn.disabled = false;
+            } else {
+                generateBtn.classList.add('hidden');
+            }
+        }
+
         async function generateCaption() {
             const name = document.querySelector('[name="name"]')?.value;
             const link = document.querySelector('[name="link"]')?.value;
             const price = document.querySelector('[name="price"]')?.value;
             const captionField = document.querySelector('[name="caption"]');
-            const btn = document.getElementById('generateBtn');
 
-            if (!name) {
-                alert('Isi nama produk terlebih dahulu.');
+            if (!name || !link) {
+                alert('Isi nama dan link produk terlebih dahulu.');
                 return;
             }
 
-            btn.disabled = true;
-            btn.textContent = '⏳ Generating...';
+            generateBtn.disabled = true;
+            generateBtn.textContent = '⏳ Generating...';
 
             try {
                 const res = await fetch('/api/captions/generate', {
@@ -277,10 +346,17 @@
             } catch (e) {
                 alert('Gagal generate caption: ' + e.message);
             } finally {
-                btn.disabled = false;
-                btn.textContent = '✨ Generate Caption dengan AI';
+                generateBtn.disabled = false;
+                generateBtn.textContent = '✨ Generate Caption dengan AI';
             }
         }
+
+        document.addEventListener('DOMContentLoaded', () => {
+            const nameInput = document.querySelector('[name="name"]');
+            const linkInput = document.querySelector('[name="link"]');
+            if (nameInput) nameInput.addEventListener('input', updateGenerateButton);
+            if (linkInput) linkInput.addEventListener('input', updateGenerateButton);
+        });
     </script>
 </body>
 </html>

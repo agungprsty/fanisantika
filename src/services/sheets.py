@@ -16,6 +16,25 @@ log = logging.getLogger(__name__)
 # Cache di-share antar request dalam proses yang sama
 _products_cache: TTLCache = TTLCache(maxsize=1, ttl=60)
 
+# Track max ID in memory to avoid re-scanning all rows on every append
+_max_id: int = 0
+
+
+def _init_max_id(credentials_json: str, spreadsheet_id: str) -> int:
+    """Compute and cache the current max ID from Google Sheets."""
+    global _max_id
+    worksheet = get_spreadsheet(credentials_json, spreadsheet_id).sheet1
+    all_rows = worksheet.get_all_values()
+    existing_ids = [int(r[0]) for r in all_rows[1:] if r and r[0].isdigit()]
+    _max_id = max(existing_ids, default=0)
+    return _max_id
+
+
+def _reset_max_id_if_needed(credentials_json: str, spreadsheet_id: str) -> None:
+    """Reset _max_id to 0 when cache is invalidated so next append recomputes."""
+    global _max_id
+    _max_id = 0
+
 
 def detect_type(link: str) -> str:
     """Detect the platform type from a product link."""
@@ -134,6 +153,33 @@ def read_all_products(
     return products[offset : offset + limit]
 
 
+def count_all_products(
+    credentials_json: str,
+    spreadsheet_id: str,
+    q: str = "",
+) -> int:
+    """Return total number of products (with optional search filter)."""
+    key = _cache_key(credentials_json, spreadsheet_id)
+
+    if key not in _products_cache:
+        _fetch_and_cache(credentials_json, spreadsheet_id)
+
+    products = _products_cache[key]
+
+    if q:
+        q_lower = q.lower()
+        products = [
+            p
+            for p in products
+            if q_lower in p.name.lower()
+            or q_lower in str(p.link).lower()
+            or q in str(p.id)
+            or q_lower in p.type.lower()
+        ]
+
+    return len(products)
+
+
 def append_product(
     credentials_json: str,
     spreadsheet_id: str,
@@ -163,9 +209,10 @@ def append_product(
     # Ensure caption column exists
     _ensure_caption_column(worksheet)
 
-    # Get current max row number for sequential "No" (row 1 is header)
-    all_rows = worksheet.get_all_values()
-    next_no = int(len(all_rows))
+    # Use cached max_id; recompute only if reset by a previous operation
+    if _max_id == 0:
+        _init_max_id(credentials_json, spreadsheet_id)
+    next_no = _max_id + 1
     created_at = datetime.datetime.now(datetime.timezone.utc).isoformat()
     product_type = detect_type(link)
 
@@ -175,6 +222,7 @@ def append_product(
     # Invalidate cache agar data baru langsung terbaca
     key = _cache_key(credentials_json, spreadsheet_id)
     _products_cache.pop(key, None)
+    _reset_max_id_if_needed(credentials_json, spreadsheet_id)
 
     return Product(
         id=next_no,
@@ -218,10 +266,29 @@ def update_product(
 
             key = _cache_key(credentials_json, spreadsheet_id)
             _products_cache.pop(key, None)
+            _reset_max_id_if_needed(credentials_json, spreadsheet_id)
             return True
 
     log.warning("Product id=%d not found for update", product_id)
     return False
+
+
+def update_product_caption(
+    credentials_json: str,
+    spreadsheet_id: str,
+    product_id: int,
+    caption: str,
+) -> bool:
+    """Update only the caption for a given product.
+
+    Returns True if found and updated, False otherwise.
+    """
+    return update_product(
+        credentials_json=credentials_json,
+        spreadsheet_id=spreadsheet_id,
+        product_id=product_id,
+        caption=caption,
+    )
 
 
 def delete_product_row(
@@ -246,6 +313,7 @@ def delete_product_row(
             # Invalidate cache
             key = _cache_key(credentials_json, spreadsheet_id)
             _products_cache.pop(key, None)
+            _reset_max_id_if_needed(credentials_json, spreadsheet_id)
             return True
 
     log.warning("Product id=%d not found for deletion", product_id)
