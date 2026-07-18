@@ -79,6 +79,10 @@ _EXTRACT_SYSTEM_PROMPT = (
     "Hilangkan kata filler yang tidak perlu (HOME, Hiasan Dinding, Kamar tidur, Cek, Dapatkan).\n"
     "Batasi nama maksimal 8 kata.\n"
     "Tulis harga dalam format k (contoh: 10000 → 10k, 35000 → 35k).\n"
+    "PENTING: Format Indonesia menggunakan dot sebagai pemisah ribuan, bukan desimal!\n"
+    "- Rp6.290 = 6290 rupiah (bukan 6,29), hasil: 6k\n"
+    "- Rp10.000 = 10000 rupiah, hasil: 10k\n"
+    "- Rp35.000 = 35000 rupiah, hasil: 35k\n"
     "Kembalikan hanya JSON valid, tanpa teks lain."
 )
 
@@ -105,6 +109,9 @@ async def _extract_product_info_from_ai(text: str) -> dict | None:
         "- Keep the most descriptive part of the name\n\n"
         "Rules for price:\n"
         "- Convert to k format (10000 → 10k, 35000 → 35k)\n"
+        "- PENTING: Format Indonesia menggunakan dot sebagai pemisah ribuan!\n"
+        "  Rp6.290 = 6290 rupiah → 6k (bukan 629k)\n"
+        "  Rp10.000 = 10000 → 10k\n"
         "- If no price found, return empty string\n\n"
         "Rules for type:\n"
         "- Infer from URL (shopee, tokopedia, lazada, bukalapak, tiktok, other)\n\n"
