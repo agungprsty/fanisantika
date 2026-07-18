@@ -78,7 +78,7 @@ _EXTRACT_SYSTEM_PROMPT = (
     "- SepatuSneakers → Sepatu Sneakers\n"
     "Hilangkan kata filler yang tidak perlu (HOME, Hiasan Dinding, Kamar tidur).\n"
     "Batasi nama maksimal 8 kata.\n"
-    "Tulis harga tanpa Rp dan tanpa titik.\n"
+    "Tulis harga dalam format k (contoh: 10000 → 10k, 35000 → 35k).\n"
     "Kembalikan hanya JSON valid, tanpa teks lain."
 )
 
@@ -104,7 +104,7 @@ async def _extract_product_info_from_ai(text: str) -> dict | None:
         "- Remove redundant filler (HOME, Hiasan Dinding, Kamar tidur) if they don't add meaning\n"
         "- Keep the most descriptive part of the name\n\n"
         "Rules for price:\n"
-        "- Extract number only, no 'Rp' or dots\n"
+        "- Convert to k format (10000 → 10k, 35000 → 35k)\n"
         "- If no price found, return empty string\n\n"
         "Rules for type:\n"
         "- Infer from URL (shopee, tokopedia, lazada, bukalapak, tiktok, other)\n\n"
@@ -196,13 +196,30 @@ def _build_welcome_text() -> str:
     )
 
 
+def _format_price(price: str) -> str:
+    """Convert numeric price to k format (10000 → 10k, 35000 → 35k)."""
+    if not price:
+        return ""
+    try:
+        num = float(str(price).replace(".", "").replace(",", "").strip())
+        if num >= 1000:
+            k_value = int(num / 1000)
+            remainder = num % 1000
+            if remainder > 0:
+                return f"{k_value}k{remainder // 100}"
+            return f"{k_value}k"
+        return str(int(num))
+    except (ValueError, TypeError):
+        return price
+
+
 def _format_reply(product: Product, chat_id: str) -> dict:
     """Format a successful save reply."""
     text = "<b>✅ Produk berhasil disimpan!</b>\n\n"
     text += f"🔗 <b>Link:</b> {product.link}\n"
     text += f"📦 <b>Nama:</b> {product.name}\n"
     if product.price:
-        text += f"💰 <b>Harga:</b> {product.price}\n"
+        text += f"💰 <b>Harga:</b> {_format_price(product.price)}\n"
     text += f"\n🏷️ <b>Type:</b> {product.type}\n"
     text += f"\n<i>{product.created_at}</i>"
 
@@ -384,12 +401,12 @@ async def webhook(request: Request):
                     "text": (
                         f"<b>Edit produk #{product.id}</b>\n\n"
                         f"📦 <b>Nama:</b> {product.name}\n"
-                        f"💰 <b>Harga:</b> {product.price}\n"
+                        f"💰 <b>Harga:</b> {_format_price(product.price)}\n"
                         f"🔗 <b>Link:</b> {product.link}\n\n"
                         "Kirim nama baru dan harga baru (opsional):\n"
                         "• <code>Nama Baru</code> — hanya ubah nama\n"
-                        "• <code>Nama Baru, 50000</code> — ubah nama & harga\n"
-                        "• <code>, 60000</code> — hanya ubah harga\n"
+                        "• <code>Nama Baru, 50k</code> — ubah nama & harga\n"
+                        "• <code>, 60k</code> — hanya ubah harga\n"
                     ),
                     "parse_mode": "HTML",
                 },
@@ -438,7 +455,7 @@ async def webhook(request: Request):
                     "text": (
                         f"<b>✅ Produk #{state['product_id']} berhasil diupdate!</b>\n\n"
                         f"📦 <b>Nama:</b> {new_name or state.get('name', '')}\n"
-                        f"💰 <b>Harga:</b> {new_price or state.get('price', '')}"
+                        f"💰 <b>Harga:</b> {_format_price(new_price) if new_price else (state.get('price', ''))}"
                     ),
                     "parse_mode": "HTML",
                 },
