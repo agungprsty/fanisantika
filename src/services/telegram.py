@@ -76,7 +76,7 @@ _EXTRACT_SYSTEM_PROMPT = (
     "- Hme → Home\n"
     "- LaptopBuka → Laptop Buka\n"
     "- SepatuSneakers → Sepatu Sneakers\n"
-    "Hilangkan kata filler yang tidak perlu (HOME, Hiasan Dinding, Kamar tidur).\n"
+    "Hilangkan kata filler yang tidak perlu (HOME, Hiasan Dinding, Kamar tidur, Cek, Dapatkan).\n"
     "Batasi nama maksimal 8 kata.\n"
     "Tulis harga dalam format k (contoh: 10000 → 10k, 35000 → 35k).\n"
     "Kembalikan hanya JSON valid, tanpa teks lain."
@@ -201,14 +201,16 @@ def _format_price(price: str) -> str:
     if not price:
         return ""
     try:
-        num = float(str(price).replace(".", "").replace(",", "").strip())
+        s = str(price).strip()
+        # Remove dots used as thousands separator, remove commas
+        num = int(float(s.replace(".", "").replace(",", "")))
         if num >= 1000:
-            k_value = int(num / 1000)
+            k_value = num // 1000
             remainder = num % 1000
             if remainder > 0:
                 return f"{k_value}k{remainder // 100}"
             return f"{k_value}k"
-        return str(int(num))
+        return str(num)
     except (ValueError, TypeError):
         return price
 
