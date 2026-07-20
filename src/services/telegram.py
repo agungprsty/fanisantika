@@ -88,6 +88,35 @@ def _extract_price_from_text(text: str) -> str:
     return ""
 
 
+# Filler words to strip from free-form product names
+_FILLER_WORDS = re.compile(
+    r"\b(Cek|Dapatkan|sekarang|juga|di Shopee|Shopee|dengan harga|Rp[\d.,]+"
+    r"|https?://\S+|,|\.)\b",
+    re.IGNORECASE,
+)
+
+
+def _extract_name_from_text(text: str) -> str:
+    """Best-effort regex extraction of product name from free-form text.
+
+    Strips URLs, prices, and common filler words, then returns the
+    remaining text (max 8 words).
+    """
+    # Remove URL
+    clean = re.sub(r"https?://\S+", "", text)
+    # Remove price patterns like "Rp130.000" or "Rp 130.000"
+    clean = re.sub(r"Rp\s?[\d.,]+", "", clean, flags=re.IGNORECASE)
+    # Remove filler words
+    clean = _FILLER_WORDS.sub(" ", clean)
+    # Collapse whitespace
+    clean = re.sub(r"\s+", " ", clean).strip()
+    # Limit to 8 words
+    words = clean.split()
+    if len(words) > 8:
+        words = words[:8]
+    return " ".join(words)
+
+
 async def _send_telegram_message(chat_id: str, text: str) -> None:
     """Send a message directly via Telegram Bot API (fallback safety net)."""
     if not settings.TELEGRAM_BOT_TOKEN:
@@ -183,7 +212,7 @@ async def _extract_product_info_from_ai(
                         "X-Title": "Affiliate Product Extractor",
                     },
                 ),
-                timeout=8,
+                timeout=15,
             )
 
             content = response.choices[0].message.content.strip() if response.choices[0].message.content else ""
@@ -566,6 +595,12 @@ async def webhook(request: Request):
                     # Prefer AI price if it found one, otherwise keep regex price
                     if ai_result.get("price"):
                         parsed["price"] = ai_result["price"]
+                else:
+                    # Regex fallback: best-effort name extraction
+                    fallback_name = _extract_name_from_text(text)
+                    if fallback_name:
+                        parsed["name"] = fallback_name
+                        log.info(f"Regex fallback name: '{fallback_name}'")
 
         if not parsed.get("name"):
             return JSONResponse(
