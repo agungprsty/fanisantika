@@ -67,6 +67,45 @@ def _validate_link(link: str) -> bool:
     return bool(re.match(r"^https?://", link))
 
 
+def _extract_url_from_text(text: str) -> str:
+    """Extract the first URL from free-form text."""
+    match = re.search(r"https?://[^\s,]+", text)
+    return match.group(0) if match else ""
+
+
+def _extract_price_from_text(text: str) -> str:
+    """Extract price from text like 'Rp130.000' or 'Rp 130.000'.
+
+    Returns the raw numeric string (e.g. '130000') or empty string.
+    """
+    match = re.search(r"Rp\s?([\d.,]+)", text, re.IGNORECASE)
+    if match:
+        raw = match.group(1).replace(".", "").replace(",", "")
+        try:
+            return str(int(raw))
+        except ValueError:
+            return ""
+    return ""
+
+
+async def _send_telegram_message(chat_id: str, text: str) -> None:
+    """Send a message directly via Telegram Bot API (fallback safety net)."""
+    if not settings.TELEGRAM_BOT_TOKEN:
+        return
+    import httpx
+
+    url = f"https://api.telegram.org/bot{settings.TELEGRAM_BOT_TOKEN}/sendMessage"
+    try:
+        async with httpx.AsyncClient(timeout=5) as client:
+            await client.post(url, json={
+                "chat_id": chat_id,
+                "text": text,
+                "parse_mode": "HTML",
+            })
+    except Exception as e:
+        log.error(f"Failed to send Telegram fallback message: {e}")
+
+
 # ── AI extraction ───────────────────────────────────────────────────────────
 
 _EXTRACT_SYSTEM_PROMPT = (
@@ -87,11 +126,14 @@ _EXTRACT_SYSTEM_PROMPT = (
 )
 
 
-async def _extract_product_info_from_ai(text: str) -> dict | None:
+async def _extract_product_info_from_ai(
+    text: str, *, max_retries: int = 1
+) -> dict | None:
     """Extract link, name, price, type from a free-form message using AI.
 
     Args:
         text: Free-form product message (e.g. copy-pasted from Shopee).
+        max_retries: Number of retry attempts (default 1 = no retry, fast).
 
     Returns:
         dict with keys: link, name, price, type — or None if extraction fails.
@@ -126,19 +168,22 @@ async def _extract_product_info_from_ai(text: str) -> dict | None:
         max_retries=0,
     )
 
-    for attempt in range(3):
+    for attempt in range(max_retries):
         try:
-            response = await client.chat.completions.create(
-                model="openrouter/free",
-                messages=[
-                    {"role": "system", "content": _EXTRACT_SYSTEM_PROMPT},
-                    {"role": "user", "content": prompt},
-                ],
-                response_format={"type": "json_object"},
-                extra_headers={
-                    "HTTP-Referer": "https://github.com/agungprsty/fanisantika",
-                    "X-Title": "Affiliate Product Extractor",
-                },
+            response = await asyncio.wait_for(
+                client.chat.completions.create(
+                    model="openrouter/free",
+                    messages=[
+                        {"role": "system", "content": _EXTRACT_SYSTEM_PROMPT},
+                        {"role": "user", "content": prompt},
+                    ],
+                    response_format={"type": "json_object"},
+                    extra_headers={
+                        "HTTP-Referer": "https://github.com/agungprsty/fanisantika",
+                        "X-Title": "Affiliate Product Extractor",
+                    },
+                ),
+                timeout=8,
             )
 
             content = response.choices[0].message.content.strip() if response.choices[0].message.content else ""
@@ -161,14 +206,10 @@ async def _extract_product_info_from_ai(text: str) -> dict | None:
         except (json.JSONDecodeError, KeyError) as e:
             log.error(f"AI extract JSON error: {e}")
             return None
+        except asyncio.TimeoutError:
+            log.warning("AI extraction timed out")
+            return None
         except Exception as e:
-            error_msg = str(e)
-            if "429" in error_msg or "502" in error_msg or "503" in error_msg:
-                if attempt < 2:
-                    wait_time = (attempt + 1) * 3
-                    log.warning(f"AI extract server busy. Waiting {wait_time}s (attempt {attempt+1}/3)...")
-                    await asyncio.sleep(wait_time)
-                    continue
             log.error(f"AI extraction failed: {e}")
             return None
 
@@ -263,22 +304,235 @@ async def webhook(request: Request):
 
     log.info(f"Received webhook from chat {chat_id}: {text}")
 
-    # --- Command handling ---
-    if _is_command(text):
-        command, args = _parse_command(text)
+    try:
+        # --- Command handling ---
+        if _is_command(text):
+            command, args = _parse_command(text)
 
-        if command in ("/start",):
+            if command in ("/start",):
+                return JSONResponse(
+                    status_code=200,
+                    content={
+                        "method": "sendMessage",
+                        "chat_id": chat_id,
+                        "text": _build_welcome_text(),
+                        "parse_mode": "HTML",
+                    },
+                )
+
+            if command in ("/help",):
+                return JSONResponse(
+                    status_code=200,
+                    content={
+                        "method": "sendMessage",
+                        "chat_id": chat_id,
+                        "text": _build_help_text(),
+                        "parse_mode": "HTML",
+                    },
+                )
+
+            if command in ("/add",):
+                if not args:
+                    return JSONResponse(
+                        status_code=200,
+                        content=_format_error(
+                            "Format: <code>/add link, nama, harga</code>\n\n"
+                            "Contoh: <code>/add https://shopee.co.id/..., Serum Wajah, 45000</code>",
+                            chat_id,
+                        ),
+                    )
+
+                parsed = _parse_message(args)
+
+                if not parsed["name"]:
+                    return JSONResponse(
+                        status_code=200,
+                        content=_format_error(
+                            "Nama produk wajib diisi.\n\n"
+                            "Format: <code>/add link, nama, harga</code>",
+                            chat_id,
+                        ),
+                    )
+
+                if not _validate_link(parsed["link"]):
+                    return JSONResponse(
+                        status_code=200,
+                        content=_format_error(
+                            "Link tidak valid. Pastikan diawali <code>http://</code> "
+                            "atau <code>https://</code>",
+                            chat_id,
+                        ),
+                    )
+
+                try:
+                    product = append_product(
+                        credentials_json=settings.GOOGLE_SHEETS_CREDENTIALS,
+                        spreadsheet_id=settings.SPREADSHEET_ID,
+                        link=parsed["link"],
+                        name=parsed["name"],
+                        price=parsed["price"],
+                    )
+                except Exception as e:
+                    log.error(f"Failed to save product via /add: {e}")
+                    return JSONResponse(
+                        status_code=200,
+                        content=_format_error(
+                            f"Gagal menyimpan produk: {e}",
+                            chat_id,
+                        ),
+                    )
+
+                if settings.CAPTION_ENABLED:
+                    from src.services.ai import generate_caption
+
+                    try:
+                        caption = await generate_caption(
+                            name=product.name, price=product.price,
+                            link=product.link, platform=product.type,
+                        )
+                        if caption:
+                            update_product(
+                                settings.GOOGLE_SHEETS_CREDENTIALS,
+                                settings.SPREADSHEET_ID,
+                                product.id, caption=caption,
+                            )
+                            product.caption = caption
+                    except Exception:
+                        log.exception("Caption generation failed after /add")
+
+                return JSONResponse(
+                    status_code=200,
+                    content=_format_reply(product, chat_id),
+                )
+
+            if command in ("/edit",):
+                if not args:
+                    return JSONResponse(
+                        status_code=200,
+                        content=_format_error(
+                            "Format: <code>/edit &lt;id&gt;</code>\n\n"
+                            "Contoh: <code>/edit 3</code>",
+                            chat_id,
+                        ),
+                    )
+
+                try:
+                    product_id = int(args)
+                except ValueError:
+                    return JSONResponse(
+                        status_code=200,
+                        content=_format_error(
+                            f"<code>{args}</code> bukan ID produk yang valid.\n\n"
+                            "Format: <code>/edit &lt;id&gt;</code>",
+                            chat_id,
+                        ),
+                    )
+
+                # Find product by ID
+                products = read_all_products(
+                    credentials_json=settings.GOOGLE_SHEETS_CREDENTIALS,
+                    spreadsheet_id=settings.SPREADSHEET_ID,
+                    limit=9999,
+                    offset=0,
+                )
+                product = next((p for p in products if p.id == product_id), None)
+
+                if not product:
+                    return JSONResponse(
+                        status_code=200,
+                        content=_format_error(
+                            f"Produk dengan ID <b>{product_id}</b> tidak ditemukan.\n\n"
+                            f"Total produk: {len(products)}",
+                            chat_id,
+                        ),
+                    )
+
+                # Set editing state
+                _editing_state[chat_id] = {
+                    "product_id": product.id,
+                    "link": product.link,
+                    "type": product.type,
+                }
+
+                return JSONResponse(
+                    status_code=200,
+                    content={
+                        "method": "sendMessage",
+                        "chat_id": chat_id,
+                        "text": (
+                            f"<b>Edit produk #{product.id}</b>\n\n"
+                            f"📦 <b>Nama:</b> {product.name}\n"
+                            f"💰 <b>Harga:</b> {_format_price(product.price)}\n"
+                            f"🔗 <b>Link:</b> {product.link}\n\n"
+                            "Kirim nama baru dan harga baru (opsional):\n"
+                            "• <code>Nama Baru</code> — hanya ubah nama\n"
+                            "• <code>Nama Baru, 50k</code> — ubah nama & harga\n"
+                            "• <code>, 60k</code> — hanya ubah harga\n"
+                        ),
+                        "parse_mode": "HTML",
+                    },
+                )
+
             return JSONResponse(
                 status_code=200,
-                content={
-                    "method": "sendMessage",
-                    "chat_id": chat_id,
-                    "text": _build_welcome_text(),
-                    "parse_mode": "HTML",
-                },
+                content=_format_error(
+                    f"Perintah <code>{command}</code> tidak dikenal.\n\n"
+                    "<code>/add link, nama, harga</code> atau <code>/edit &lt;id&gt;</code>",
+                    chat_id,
+                ),
             )
 
-        if command in ("/help",):
+        # --- Reply to edit command (editing mode) ---
+        if chat_id in _editing_state:
+            state = _editing_state[chat_id]
+            parts = [p.strip() for p in text.split(",")]
+
+            new_name = parts[0] if len(parts) > 0 else ""
+            new_price = parts[1] if len(parts) > 1 else ""
+
+            # Clear editing state
+            _editing_state.pop(chat_id, None)
+
+            if not new_name and not new_price:
+                return JSONResponse(
+                    status_code=200,
+                    content=_format_error("Nama atau harga harus diisi.", chat_id),
+                )
+
+            try:
+                update_product(
+                    credentials_json=settings.GOOGLE_SHEETS_CREDENTIALS,
+                    spreadsheet_id=settings.SPREADSHEET_ID,
+                    product_id=state["product_id"],
+                    name=new_name if new_name else None,
+                    price=new_price if new_price else None,
+                )
+
+                return JSONResponse(
+                    status_code=200,
+                    content={
+                        "method": "sendMessage",
+                        "chat_id": chat_id,
+                        "text": (
+                            f"<b>✅ Produk #{state['product_id']} berhasil diupdate!</b>\n\n"
+                            f"📦 <b>Nama:</b> {new_name or state.get('name', '')}\n"
+                            f"💰 <b>Harga:</b> {_format_price(new_price) if new_price else (state.get('price', ''))}"
+                        ),
+                        "parse_mode": "HTML",
+                    },
+                )
+            except Exception as e:
+                log.error(f"Failed to update product {state['product_id']}: {e}")
+                return JSONResponse(
+                    status_code=200,
+                    content=_format_error(
+                        f"Gagal update produk #{state['product_id']}: {e}",
+                        chat_id,
+                    ),
+                )
+
+        # --- Non-command: auto-save if message contains a URL ---
+        if not _contains_url(text):
             return JSONResponse(
                 status_code=200,
                 content={
@@ -289,270 +543,97 @@ async def webhook(request: Request):
                 },
             )
 
-        if command in ("/add",):
-            if not args:
-                return JSONResponse(
-                    status_code=200,
-                    content=_format_error(
-                        "Format: <code>/add link, nama, harga</code>\n\n"
-                        "Contoh: <code>/add https://shopee.co.id/..., Serum Wajah, 45000</code>",
-                        chat_id,
-                    ),
-                )
+        # Regex first: always try fast parsing before AI
+        link = _extract_url_from_text(text)
+        parsed = _parse_message(text)
 
-            parsed = _parse_message(args)
-
+        # Case 1: comma-separated format worked (link + name from split)
+        if parsed["link"] and _validate_link(parsed["link"]) and parsed["name"]:
+            pass  # use parsed as-is, no AI needed
+        else:
+            # Case 2: free-form message — use extracted URL, AI for name enrichment
+            parsed["link"] = link
             if not parsed["name"]:
-                return JSONResponse(
-                    status_code=200,
-                    content=_format_error(
-                        "Nama produk wajib diisi.\n\n"
-                        "Format: <code>/add link, nama, harga</code>",
-                        chat_id,
-                    ),
-                )
+                # Try to extract price from text as regex fallback
+                regex_price = _extract_price_from_text(text)
+                if regex_price:
+                    parsed["price"] = regex_price
 
-            if not _validate_link(parsed["link"]):
-                return JSONResponse(
-                    status_code=200,
-                    content=_format_error(
-                        "Link tidak valid. Pastikan diawali <code>http://</code> "
-                        "atau <code>https://</code>",
-                        chat_id,
-                    ),
-                )
+                # AI enrichment: single attempt with timeout
+                ai_result = await _extract_product_info_from_ai(text)
+                if ai_result and ai_result["name"]:
+                    parsed["name"] = ai_result["name"]
+                    # Prefer AI price if it found one, otherwise keep regex price
+                    if ai_result.get("price"):
+                        parsed["price"] = ai_result["price"]
 
+        if not parsed.get("name"):
+            return JSONResponse(
+                status_code=200,
+                content=_format_error(
+                    "Nama produk wajib diisi.\n\n"
+                    "Format: <code>link, nama, harga (opsional)</code>\n\n"
+                    "Contoh: <code>https://shopee.co.id/..., Serum Wajah, 45000</code>",
+                    chat_id,
+                ),
+            )
+
+        if not _validate_link(parsed.get("link", "")):
+            return JSONResponse(
+                status_code=200,
+                content=_format_error(
+                    "Link tidak valid. Pastikan diawali <code>http://</code> "
+                    "atau <code>https://</code>",
+                    chat_id,
+                ),
+            )
+
+        try:
             product = append_product(
                 credentials_json=settings.GOOGLE_SHEETS_CREDENTIALS,
                 spreadsheet_id=settings.SPREADSHEET_ID,
                 link=parsed["link"],
                 name=parsed["name"],
-                price=parsed["price"],
-            )
-
-            if settings.CAPTION_ENABLED:
-                from src.services.ai import generate_caption
-
-                try:
-                    caption = await generate_caption(
-                        name=product.name, price=product.price,
-                        link=product.link, platform=product.type,
-                    )
-                    if caption:
-                        update_product(
-                            settings.GOOGLE_SHEETS_CREDENTIALS,
-                            settings.SPREADSHEET_ID,
-                            product.id, caption=caption,
-                        )
-                        product.caption = caption
-                except Exception:
-                    log.exception("Caption generation failed after /add")
-
-            return JSONResponse(
-                status_code=200,
-                content=_format_reply(product, chat_id),
-            )
-
-        if command in ("/edit",):
-            if not args:
-                return JSONResponse(
-                    status_code=200,
-                    content=_format_error(
-                        "Format: <code>/edit &lt;id&gt;</code>\n\n"
-                        "Contoh: <code>/edit 3</code>",
-                        chat_id,
-                    ),
-                )
-
-            try:
-                product_id = int(args)
-            except ValueError:
-                return JSONResponse(
-                    status_code=200,
-                    content=_format_error(
-                        f"<code>{args}</code> bukan ID produk yang valid.\n\n"
-                        "Format: <code>/edit &lt;id&gt;</code>",
-                        chat_id,
-                    ),
-                )
-
-            # Find product by ID
-            products = read_all_products(
-                credentials_json=settings.GOOGLE_SHEETS_CREDENTIALS,
-                spreadsheet_id=settings.SPREADSHEET_ID,
-                limit=9999,
-                offset=0,
-            )
-            product = next((p for p in products if p.id == product_id), None)
-
-            if not product:
-                return JSONResponse(
-                    status_code=200,
-                    content=_format_error(
-                        f"Produk dengan ID <b>{product_id}</b> tidak ditemukan.\n\n"
-                        f"Total produk: {len(products)}",
-                        chat_id,
-                    ),
-                )
-
-            # Set editing state
-            _editing_state[chat_id] = {
-                "product_id": product.id,
-                "link": product.link,
-                "type": product.type,
-            }
-
-            return JSONResponse(
-                status_code=200,
-                content={
-                    "method": "sendMessage",
-                    "chat_id": chat_id,
-                    "text": (
-                        f"<b>Edit produk #{product.id}</b>\n\n"
-                        f"📦 <b>Nama:</b> {product.name}\n"
-                        f"💰 <b>Harga:</b> {_format_price(product.price)}\n"
-                        f"🔗 <b>Link:</b> {product.link}\n\n"
-                        "Kirim nama baru dan harga baru (opsional):\n"
-                        "• <code>Nama Baru</code> — hanya ubah nama\n"
-                        "• <code>Nama Baru, 50k</code> — ubah nama & harga\n"
-                        "• <code>, 60k</code> — hanya ubah harga\n"
-                    ),
-                    "parse_mode": "HTML",
-                },
-            )
-
-        return JSONResponse(
-            status_code=200,
-            content=_format_error(
-                f"Perintah <code>{command}</code> tidak dikenal.\n\n"
-                "<code>/add link, nama, harga</code> atau <code>/edit &lt;id&gt;</code>",
-                chat_id,
-            ),
-        )
-
-    # --- Reply to edit command (editing mode) ---
-    if chat_id in _editing_state:
-        state = _editing_state[chat_id]
-        parts = [p.strip() for p in text.split(",")]
-
-        new_name = parts[0] if len(parts) > 0 else ""
-        new_price = parts[1] if len(parts) > 1 else ""
-
-        # Clear editing state
-        _editing_state.pop(chat_id, None)
-
-        if not new_name and not new_price:
-            return JSONResponse(
-                status_code=200,
-                content=_format_error("Nama atau harga harus diisi.", chat_id),
-            )
-
-        try:
-            update_product(
-                credentials_json=settings.GOOGLE_SHEETS_CREDENTIALS,
-                spreadsheet_id=settings.SPREADSHEET_ID,
-                product_id=state["product_id"],
-                name=new_name if new_name else None,
-                price=new_price if new_price else None,
-            )
-
-            return JSONResponse(
-                status_code=200,
-                content={
-                    "method": "sendMessage",
-                    "chat_id": chat_id,
-                    "text": (
-                        f"<b>✅ Produk #{state['product_id']} berhasil diupdate!</b>\n\n"
-                        f"📦 <b>Nama:</b> {new_name or state.get('name', '')}\n"
-                        f"💰 <b>Harga:</b> {_format_price(new_price) if new_price else (state.get('price', ''))}"
-                    ),
-                    "parse_mode": "HTML",
-                },
+                price=parsed.get("price", ""),
             )
         except Exception as e:
-            log.error(f"Failed to update product {state['product_id']}: {e}")
+            log.error(f"Failed to save product: {e}")
             return JSONResponse(
                 status_code=200,
                 content=_format_error(
-                    f"Gagal update produk #{state['product_id']}: {e}",
+                    f"Gagal menyimpan produk: {e}",
                     chat_id,
                 ),
             )
 
-    # --- Non-command: auto-save if message contains a URL ---
-    if not _contains_url(text):
-        return JSONResponse(
-            status_code=200,
-            content={
-                "method": "sendMessage",
-                "chat_id": chat_id,
-                "text": _build_help_text(),
-                "parse_mode": "HTML",
-            },
-        )
+        if settings.CAPTION_ENABLED:
+            from src.services.ai import generate_caption
 
-    # Choose parsing strategy based on message length
-    parsed: dict = {}
-    if len(text) >= 70:
-        # Use AI extraction for longer messages (copy-pasted from Shopee)
-        ai_result = await _extract_product_info_from_ai(text)
-        if ai_result and ai_result["name"]:
-            parsed = ai_result
-        else:
-            log.info("AI extraction returned empty, falling back to regex")
-            parsed = _parse_message(text)
-    else:
-        # Fast regex for short messages
-        parsed = _parse_message(text)
-
-    if not parsed.get("name"):
-        return JSONResponse(
-            status_code=200,
-            content=_format_error(
-                "Nama produk wajib diisi.\n\n"
-                "Format: <code>link, nama, harga (opsional)</code>\n\n"
-                "Contoh: <code>https://shopee.co.id/..., Serum Wajah, 45000</code>",
-                chat_id,
-            ),
-        )
-
-    if not _validate_link(parsed["link"]):
-        return JSONResponse(
-            status_code=200,
-            content=_format_error(
-                "Link tidak valid. Pastikan diawali <code>http://</code> "
-                "atau <code>https://</code>",
-                chat_id,
-            ),
-        )
-
-    product = append_product(
-        credentials_json=settings.GOOGLE_SHEETS_CREDENTIALS,
-        spreadsheet_id=settings.SPREADSHEET_ID,
-        link=parsed["link"],
-        name=parsed["name"],
-        price=parsed.get("price", ""),
-    )
-
-    if settings.CAPTION_ENABLED:
-        from src.services.ai import generate_caption
-
-        try:
-            caption = await generate_caption(
-                name=product.name, price=product.price,
-                link=product.link, platform=product.type,
-            )
-            if caption:
-                update_product(
-                    settings.GOOGLE_SHEETS_CREDENTIALS,
-                    settings.SPREADSHEET_ID,
-                    product.id, caption=caption,
+            try:
+                caption = await generate_caption(
+                    name=product.name, price=product.price,
+                    link=product.link, platform=product.type,
                 )
-                product.caption = caption
-        except Exception:
-            log.exception("Caption generation failed after auto-save")
+                if caption:
+                    update_product(
+                        settings.GOOGLE_SHEETS_CREDENTIALS,
+                        settings.SPREADSHEET_ID,
+                        product.id, caption=caption,
+                    )
+                    product.caption = caption
+            except Exception:
+                log.exception("Caption generation failed after auto-save")
 
-    return JSONResponse(
-        status_code=200,
-        content=_format_reply(product, chat_id),
-    )
+        return JSONResponse(
+            status_code=200,
+            content=_format_reply(product, chat_id),
+        )
+
+    except Exception as e:
+        log.exception(f"Webhook handler error for chat {chat_id}")
+        await _send_telegram_message(
+            chat_id,
+            "<b>❌ Terjadi kesalahan</b>\n\n"
+            "Terjadi error internal. Coba lagi nanti.\n\n/help — Bantuan",
+        )
+        return JSONResponse(status_code=200, content={"ok": True})
