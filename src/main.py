@@ -295,12 +295,14 @@ async def admin_product_add_submit(request: Request):
         return response
 
     try:
+        from src.services.telegram import _format_price
+
         append_product(
             credentials_json=settings.GOOGLE_SHEETS_CREDENTIALS,
             spreadsheet_id=settings.SPREADSHEET_ID,
             link=link,
             name=name,
-            price=price,
+            price=_format_price(price),
             caption=caption,
         )
 
@@ -380,12 +382,14 @@ async def admin_product_edit_submit(request: Request, pid: int):
     caption = (form.get("caption") or "").strip()
 
     try:
+        from src.services.telegram import _format_price
+
         update_product(
             settings.GOOGLE_SHEETS_CREDENTIALS,
             settings.SPREADSHEET_ID,
             pid,
             name=name or None,
-            price=price or None,
+            price=_format_price(price) if price else None,
             caption=caption or None,
         )
     except Exception as e:

@@ -416,7 +416,7 @@ async def webhook(request: Request):
                         spreadsheet_id=settings.SPREADSHEET_ID,
                         link=parsed["link"],
                         name=parsed["name"],
-                        price=parsed["price"],
+                        price=_format_price(parsed["price"]),
                     )
                 except Exception as e:
                     log.error(f"Failed to save product via /add: {e}")
@@ -552,7 +552,7 @@ async def webhook(request: Request):
                     spreadsheet_id=settings.SPREADSHEET_ID,
                     product_id=state["product_id"],
                     name=new_name if new_name else None,
-                    price=new_price if new_price else None,
+                    price=_format_price(new_price) if new_price else None,
                 )
 
                 return JSONResponse(
@@ -651,7 +651,7 @@ async def webhook(request: Request):
                 spreadsheet_id=settings.SPREADSHEET_ID,
                 link=parsed["link"],
                 name=parsed["name"],
-                price=parsed.get("price", ""),
+                price=_format_price(parsed.get("price", "")),
             )
         except Exception as e:
             log.error(f"Failed to save product: {e}")
