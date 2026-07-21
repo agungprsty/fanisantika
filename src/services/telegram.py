@@ -279,28 +279,39 @@ def _format_price(price: str) -> str:
         return ""
     try:
         s = str(price).strip()
-        # Remove dots used as thousands separator, remove commas
         num = int(float(s.replace(".", "").replace(",", "")))
         if num >= 1000:
-            k_value = num // 1000
-            remainder = num % 1000
-            if remainder > 0:
-                return f"{k_value}k{remainder // 100}"
+            k_value = round(num / 1000)
             return f"{k_value}k"
         return str(num)
     except (ValueError, TypeError):
         return price
 
 
+def _format_datetime(iso_str: str) -> str:
+    """Convert ISO datetime string to human-readable format (WIB)."""
+    if not iso_str:
+        return ""
+    try:
+        from datetime import datetime, timezone, timedelta
+        dt = datetime.fromisoformat(iso_str)
+        wib = timezone(timedelta(hours=7))
+        dt_wib = dt.astimezone(wib)
+        return dt_wib.strftime("%d %b %Y, %H:%M WIB")
+    except (ValueError, TypeError):
+        return iso_str
+
+
 def _format_reply(product: Product, chat_id: str) -> dict:
     """Format a successful save reply."""
     text = "<b>✅ Produk berhasil disimpan!</b>\n\n"
+    text += f"🆔 <b>ID:</b> #{product.id}\n"
     text += f"🔗 <b>Link:</b> {product.link}\n"
     text += f"📦 <b>Nama:</b> {product.name}\n"
     if product.price:
         text += f"💰 <b>Harga:</b> {_format_price(product.price)}\n"
     text += f"\n🏷️ <b>Type:</b> {product.type}\n"
-    text += f"\n<i>{product.created_at}</i>"
+    text += f"📅 <b>Disimpan:</b> {_format_datetime(product.created_at)}"
 
     return {"method": "sendMessage", "chat_id": chat_id, "text": text, "parse_mode": "HTML"}
 
@@ -492,7 +503,8 @@ async def webhook(request: Request):
                             f"<b>Edit produk #{product.id}</b>\n\n"
                             f"📦 <b>Nama:</b> {product.name}\n"
                             f"💰 <b>Harga:</b> {_format_price(product.price)}\n"
-                            f"🔗 <b>Link:</b> {product.link}\n\n"
+                            f"🔗 <b>Link:</b> {product.link}\n"
+                            f"📅 <b>Disimpan:</b> {_format_datetime(product.created_at)}\n\n"
                             "Kirim nama baru dan harga baru (opsional):\n"
                             "• <code>Nama Baru</code> — hanya ubah nama\n"
                             "• <code>Nama Baru, 50k</code> — ubah nama & harga\n"
