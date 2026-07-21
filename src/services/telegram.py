@@ -326,7 +326,7 @@ async def webhook(request: Request):
         return JSONResponse(status_code=400, content={"error": "Invalid JSON"})
 
     chat_id = str(body.get("message", {}).get("chat", {}).get("id", ""))
-    text = body.get("message", {}).get("text", "")
+    text = body.get("message", {}).get("text", "") or body.get("message", {}).get("caption", "")
 
     if not text:
         return JSONResponse(status_code=200, content={"ok": True})

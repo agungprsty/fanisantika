@@ -101,6 +101,7 @@ def _fetch_and_cache(credentials_json: str, spreadsheet_id: str) -> list[Product
             row_data["id"] = 0
         else:
             row_data["id"] = int(row_data["id"])
+        row_data["price"] = str(row_data.get("price", ""))
         if not row_data.get("type"):
             row_data["type"] = detect_type(row_data.get("link", ""))
         result.append(Product(**row_data))
