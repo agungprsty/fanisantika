@@ -95,17 +95,23 @@ _FILLER_WORDS = re.compile(
     re.IGNORECASE,
 )
 
+# Store name patterns to strip (e.g. "| BUTSANA.ID", "| NAMA_TOKO")
+# Matches pipe + single store name word (with optional dots)
+_STORE_PATTERN = re.compile(r"\|\s*[\w.]+\s+")
+
 
 def _extract_name_from_text(text: str) -> str:
     """Best-effort regex extraction of product name from free-form text.
 
-    Strips URLs, prices, and common filler words, then returns the
-    remaining text (max 8 words).
+    Strips URLs, prices, filler words, and store name patterns,
+    then returns the remaining text (max 8 words).
     """
     # Remove URL
     clean = re.sub(r"https?://\S+", "", text)
     # Remove price patterns like "Rp130.000" or "Rp 130.000"
     clean = re.sub(r"Rp\s?[\d.,]+", "", clean, flags=re.IGNORECASE)
+    # Remove store name patterns like "| BUTSANA.ID" or "| TOKO_SHOPEE" (before filler words)
+    clean = _STORE_PATTERN.sub(" ", clean)
     # Remove filler words
     clean = _FILLER_WORDS.sub(" ", clean)
     # Collapse whitespace
@@ -594,6 +600,10 @@ async def webhook(request: Request):
         else:
             # Case 2: free-form message — use extracted URL, AI for name enrichment
             parsed["link"] = link
+            # Reset name if comma-split produced invalid link (garbage text)
+            if not _validate_link(parsed.get("link", "")):
+                parsed["name"] = ""
+
             if not parsed["name"]:
                 # Try to extract price from text as regex fallback
                 regex_price = _extract_price_from_text(text)
