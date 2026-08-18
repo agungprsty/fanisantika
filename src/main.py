@@ -24,6 +24,7 @@ from src.services.sheets import (
     read_all_products,
     update_product,
     update_product_caption,
+    update_product_threads,
 )
 from src.services.telegram import router as webhook_router
 
@@ -107,6 +108,95 @@ async def api_generate_caption(request: Request):
     except Exception as e:
         log.error(f"Caption generation failed: {e}")
         return JSONResponse({"error": str(e)}, status_code=500)
+
+
+@app.post("/api/threads/generate")
+async def api_generate_threads(request: Request):
+    """Generate Threads 'Spill di Reply' content for a product."""
+    body = await request.json()
+    name = (body.get("name") or "").strip()
+    link = (body.get("link") or "").strip()
+    price = (body.get("price") or "").strip()
+
+    if not name:
+        return JSONResponse({"error": "Nama produk wajib diisi"}, status_code=400)
+
+    from src.services.ai import generate_threads_content
+
+    try:
+        result = await generate_threads_content(name=name, price=price, link=link)
+        if not result:
+            return JSONResponse({"error": "Gagal generate konten threads"}, status_code=500)
+        return JSONResponse(result)
+    except Exception as e:
+        log.error(f"Threads generation failed: {e}")
+        return JSONResponse({"error": str(e)}, status_code=500)
+
+
+@app.post("/api/threads/save")
+async def api_save_threads(request: Request):
+    """Save generated Threads content to Google Sheets."""
+    user = get_admin_user(request)
+    if not user:
+        return JSONResponse({"error": "Unauthorized"}, status_code=401)
+
+    body = await request.json()
+    product_id = body.get("product_id")
+    content = (body.get("content") or "").strip()
+
+    if not product_id:
+        return JSONResponse({"error": "product_id wajib diisi"}, status_code=400)
+
+    try:
+        update_product_threads(
+            settings.GOOGLE_SHEETS_CREDENTIALS,
+            settings.SPREADSHEET_ID,
+            int(product_id),
+            content,
+        )
+        return JSONResponse({"success": True})
+    except Exception as e:
+        log.error(f"Failed to save threads content: {e}")
+        return JSONResponse({"error": str(e)}, status_code=500)
+
+
+@app.get("/threads")
+async def threads_generator(request: Request):
+    """Threads content generator page."""
+    user = get_admin_user(request)
+    if not user:
+        return RedirectResponse(url="/login", status_code=303)
+
+    try:
+        products = read_all_products(
+            settings.GOOGLE_SHEETS_CREDENTIALS,
+            settings.SPREADSHEET_ID,
+            limit=9999,
+            offset=0,
+        )
+    except Exception as e:
+        log.error(f"Failed to load products: {e}")
+        products = []
+
+    # Pre-select product if pid query param exists
+    pid = request.query_params.get("pid")
+    selected_product = None
+    if pid:
+        try:
+            selected_product = next((p for p in products if p.id == int(pid)), None)
+        except (ValueError, StopIteration):
+            pass
+
+    csrf_token = generate_csrf_token()
+    response = templates.TemplateResponse("admin/threads.html", {
+        "request": request,
+        "user": user,
+        "products": products,
+        "selected_product": selected_product,
+        "csrf_token": csrf_token,
+    })
+    _set_csrf(response, csrf_token)
+    return response
 
 
 # ── Admin Routes ───────────────────────────────────────────────

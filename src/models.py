@@ -13,6 +13,7 @@ class Product(BaseModel):
     created_at: str = ""
     type: str = "other"
     caption: str = ""
+    threads_content: str = ""
 
 
 class TelegramMessage(BaseModel):

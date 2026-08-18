@@ -26,7 +26,8 @@ src/
 └── templates/
     ├── index.html     # Homepage (public)
     └── admin/
-        └── dashboard.html  # Admin dashboard (login, table, forms)
+        ├── dashboard.html  # Admin dashboard (login, table, forms)
+        └── threads.html    # Threads content generator page
 ```
 
 ## Key Conventions
@@ -45,6 +46,9 @@ src/
 | POST | `/webhook` | Telegram webhook endpoint — parse & save product messages | No |
 | GET | `/api/products` | JSON API returning all products (for JS fetch or testing) | No |
 | POST | `/api/captions/generate` | Generate caption via Gemini (for AJAX from dashboard) | No |
+| POST | `/api/threads/generate` | Generate Threads "Spill di Reply" content | No |
+| POST | `/api/threads/save` | Save Threads content to Google Sheets | Yes |
+| GET | `/threads` | Threads content generator page | Yes |
 | GET | `/login` | Admin login page | No |
 | POST | `/login` | Process login | No |
 | POST | `/logout` | Logout | Yes |
@@ -81,11 +85,11 @@ Register these via BotFather (`/setcommands`):
 
 ## Google Sheets Structure
 
-| No | Link | Nama | Harga | Timestamp | Type | caption |
-|----|------|------|-------|-----------|------|---------|
-| 1 | https://... | Serum Wajah | 45000 | 2026-07-09T... | shopee | Caption... |
+| No | Link | Nama | Harga | Timestamp | Type | caption | threads_content |
+|----|------|------|-------|-----------|------|---------|-----------------|
+| 1 | https://... | Serum Wajah | 45000 | 2026-07-09T... | shopee | Caption... | {"angle_type": "...", "post_1": "...", "post_2": "..."} |
 
-Column mapping: A=id, B=name, C=price, D=link, E=created_at, F=type, G=caption
+Column mapping: A=id, B=name, C=price, D=link, E=created_at, F=type, G=caption, H=threads_content
 
 ## Environment Variables
 

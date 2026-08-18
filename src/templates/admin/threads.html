@@ -1,0 +1,316 @@
+<!DOCTYPE html>
+<html lang="id">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Threads Generator — Affiliate Katalog</title>
+
+    <link rel="icon" href="data:image/svg+xml,<svg xmlns=%22http://www.w3.org/2000/svg%22 viewBox=%220 0 100 100%22><text y=%22.9em%22 font-size=%2290%22>💗</text></svg>">
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+    <link href="https://fonts.googleapis.com/css2?family=Playball&family=Montserrat:wght@400;600;700&display=swap" rel="stylesheet">
+    <script src="https://cdn.tailwindcss.com"></script>
+    <script>
+        tailwind.config = {
+            theme: {
+                extend: {
+                    colors: {
+                        'soft-pink': '#FFF1F2',
+                        'main-pink': '#FB7185',
+                        'deep-pink': '#BE123C',
+                        'threads-purple': '#7C3AED',
+                        'threads-light': '#EDE9FE',
+                    },
+                    fontFamily: {
+                        cursive: ['Playball', 'cursive'],
+                    },
+                },
+            },
+        };
+    </script>
+    <style>
+        ::-webkit-scrollbar { width: 5px; }
+        ::-webkit-scrollbar-track { background: var(--soft-pink); }
+        ::-webkit-scrollbar-thumb { background: var(--main-pink); border-radius: 10px; }
+    </style>
+</head>
+<body class="min-h-screen bg-soft-pink flex flex-col items-center py-8 px-4">
+
+    <div class="w-full max-w-2xl">
+        <!-- Header -->
+        <div class="flex items-center justify-between mb-8">
+            <a href="/dashboard" class="text-rose-400 hover:text-rose-600 text-sm">&larr; Kembali ke Dashboard</a>
+            <h1 class="text-2xl text-deep-pink font-cursive">🧵 Threads Generator</h1>
+            <div></div>
+        </div>
+
+        <!-- Product Selector -->
+        <div class="bg-white/70 backdrop-blur-md rounded-2xl shadow-sm border border-rose-100 p-6 mb-6">
+            <label class="text-[11px] uppercase tracking-wider text-rose-500 font-semibold block mb-2">Pilih Produk</label>
+            <select id="productSelect"
+                class="w-full bg-white/80 py-3 px-4 rounded-xl border border-rose-100 focus:outline-none focus:ring-2 focus:ring-threads-purple text-sm">
+                <option value="">-- Pilih produk atau isi manual --</option>
+                {% for product in products %}
+                <option value="{{ product.id }}"
+                    data-name="{{ product.name }}"
+                    data-link="{{ product.link }}"
+                    data-price="{{ product.price }}"
+                    data-threads="{{ product.threads_content }}"
+                    {% if selected_product and selected_product.id == product.id %}selected{% endif %}>
+                    {{ product.id }}. {{ product.name }} {% if product.price %}({{ product.price }}){% endif %}
+                </option>
+                {% endfor %}
+            </select>
+        </div>
+
+        <!-- Input Fields -->
+        <div class="bg-white/70 backdrop-blur-md rounded-2xl shadow-sm border border-rose-100 p-6 mb-6">
+            <div class="mb-4">
+                <label class="text-[11px] uppercase tracking-wider text-rose-500 font-semibold block mb-2">Nama Produk *</label>
+                <input type="text" id="inputName" placeholder="Contoh: Serum Wajah Brightening"
+                    class="w-full bg-white/80 py-3 px-4 rounded-xl border border-rose-100 focus:outline-none focus:ring-2 focus:ring-threads-purple text-sm">
+            </div>
+            <div class="mb-4">
+                <label class="text-[11px] uppercase tracking-wider text-rose-500 font-semibold block mb-2">Link Produk *</label>
+                <input type="url" id="inputLink" placeholder="https://shopee.co.id/..."
+                    class="w-full bg-white/80 py-3 px-4 rounded-xl border border-rose-100 focus:outline-none focus:ring-2 focus:ring-threads-purple text-sm">
+            </div>
+            <div class="mb-4">
+                <label class="text-[11px] uppercase tracking-wider text-rose-500 font-semibold block mb-2">Harga (opsional)</label>
+                <input type="text" id="inputPrice" placeholder="45000"
+                    class="w-full bg-white/80 py-3 px-4 rounded-xl border border-rose-100 focus:outline-none focus:ring-2 focus:ring-threads-purple text-sm">
+            </div>
+
+            <button type="button" id="generateBtn" onclick="generateContent()"
+                class="w-full bg-threads-purple hover:bg-purple-800 text-white font-semibold py-3 rounded-xl transition-colors text-sm tracking-wider uppercase">
+                ✨ Generate Threads Content
+            </button>
+        </div>
+
+        <!-- Output Section -->
+        <div id="outputSection" class="bg-white/70 backdrop-blur-md rounded-2xl shadow-sm border border-threads-light p-6 mb-6 hidden">
+            <div class="flex items-center justify-between mb-4">
+                <h2 class="text-lg text-threads-purple font-semibold">Hasil Generate</h2>
+                <span id="angleBadge" class="inline-block bg-threads-light text-threads-purple text-[10px] font-semibold px-3 py-1 rounded-full uppercase tracking-wider"></span>
+            </div>
+
+            <!-- Post 1 -->
+            <div class="mb-5">
+                <div class="flex items-center justify-between mb-2">
+                    <label class="text-[11px] uppercase tracking-wider text-threads-purple font-semibold">Post 1 (Engagement Bait)</label>
+                    <span id="charCount" class="text-[10px] text-rose-400">0/250</span>
+                </div>
+                <div class="relative">
+                    <textarea id="post1Output" rows="4" readonly
+                        class="w-full bg-purple-50/50 py-3 px-4 rounded-xl border border-threads-light focus:outline-none text-sm resize-none"></textarea>
+                    <button type="button" onclick="copyToClipboard('post1Output')"
+                        class="absolute top-2 right-2 bg-white hover:bg-purple-100 text-threads-purple text-[10px] font-semibold px-3 py-1.5 rounded-lg transition-colors border border-threads-light">
+                        📋 Copy
+                    </button>
+                </div>
+            </div>
+
+            <!-- Post 2 -->
+            <div class="mb-5">
+                <label class="text-[11px] uppercase tracking-wider text-threads-purple font-semibold block mb-2">Post 2 (Reply + Link)</label>
+                <div class="relative">
+                    <textarea id="post2Output" rows="4" readonly
+                        class="w-full bg-purple-50/50 py-3 px-4 rounded-xl border border-threads-light focus:outline-none text-sm resize-none"></textarea>
+                    <button type="button" onclick="copyToClipboard('post2Output')"
+                        class="absolute top-2 right-2 bg-white hover:bg-purple-100 text-threads-purple text-[10px] font-semibold px-3 py-1.5 rounded-lg transition-colors border border-threads-light">
+                        📋 Copy
+                    </button>
+                </div>
+            </div>
+
+            <!-- Action Buttons -->
+            <div class="flex gap-3">
+                <button type="button" onclick="generateContent()"
+                    class="flex-1 border border-threads-purple text-threads-purple font-semibold py-3 rounded-xl hover:bg-threads-light transition-colors text-sm">
+                    🔄 Regenerate
+                </button>
+                <button type="button" id="saveBtn" onclick="saveContent()"
+                    class="flex-1 bg-main-pink hover:bg-deep-pink text-white font-semibold py-3 rounded-xl transition-colors text-sm">
+                    💾 Simpan ke Sheet
+                </button>
+            </div>
+        </div>
+
+        <!-- Saved Content Preview -->
+        <div id="savedSection" class="bg-green-50/70 backdrop-blur-md rounded-2xl shadow-sm border border-green-200 p-6 mb-6 hidden">
+            <div class="flex items-center gap-2 mb-3">
+                <span class="text-green-600 text-sm font-semibold">✓ Konten tersimpan</span>
+            </div>
+            <p class="text-xs text-green-600">Konten threads sudah tersimpan di Google Sheets.</p>
+        </div>
+
+        <!-- Footer -->
+        <footer class="mt-16 text-center">
+            <div class="h-[1px] w-12 bg-rose-200 mx-auto mb-4"></div>
+            <p class="text-[11px] text-rose-400 font-medium tracking-widest uppercase mb-1">Threads Generator 💗</p>
+        </footer>
+    </div>
+
+    <!-- Toast Notification -->
+    <div id="toast" class="fixed bottom-4 right-4 bg-threads-purple text-white text-sm px-4 py-3 rounded-xl shadow-lg transform translate-y-20 opacity-0 transition-all duration-300">
+        Berhasil disalin!
+    </div>
+
+    <script>
+        const productSelect = document.getElementById('productSelect');
+        const inputName = document.getElementById('inputName');
+        const inputLink = document.getElementById('inputLink');
+        const inputPrice = document.getElementById('inputPrice');
+        const generateBtn = document.getElementById('generateBtn');
+        const outputSection = document.getElementById('outputSection');
+        const post1Output = document.getElementById('post1Output');
+        const post2Output = document.getElementById('post2Output');
+        const angleBadge = document.getElementById('angleBadge');
+        const charCount = document.getElementById('charCount');
+        const savedSection = document.getElementById('savedSection');
+
+        let currentProductId = null;
+        let lastGenerated = null;
+
+        // Pre-fill from selected product
+        {% if selected_product %}
+        inputName.value = "{{ selected_product.name }}";
+        inputLink.value = "{{ selected_product.link }}";
+        inputPrice.value = "{{ selected_product.price }}";
+        currentProductId = {{ selected_product.id }};
+        {% endif %}
+
+        productSelect.addEventListener('change', function() {
+            const option = this.options[this.selectedIndex];
+            if (this.value) {
+                inputName.value = option.dataset.name || '';
+                inputLink.value = option.dataset.link || '';
+                inputPrice.value = option.dataset.price || '';
+                currentProductId = parseInt(this.value);
+
+                // Show saved content if exists
+                const threadsContent = option.dataset.threads;
+                if (threadsContent) {
+                    try {
+                        const parsed = JSON.parse(threadsContent);
+                        showOutput(parsed);
+                        savedSection.classList.remove('hidden');
+                    } catch(e) {
+                        savedSection.classList.add('hidden');
+                    }
+                } else {
+                    outputSection.classList.add('hidden');
+                    savedSection.classList.add('hidden');
+                }
+            }
+        });
+
+        // Trigger change event if there's a pre-selected product
+        {% if selected_product %}
+        productSelect.dispatchEvent(new Event('change'));
+        {% endif %}
+
+        function updateCharCount() {
+            const len = post1Output.value.length;
+            charCount.textContent = `${len}/250`;
+            charCount.className = len > 250 ? 'text-[10px] text-red-500 font-semibold' : 'text-[10px] text-rose-400';
+        }
+
+        function showOutput(data) {
+            post1Output.value = data.post_1_caption || '';
+            post2Output.value = data.post_2_reply_cta || '';
+            angleBadge.textContent = data.angle_type || '';
+            outputSection.classList.remove('hidden');
+            updateCharCount();
+            lastGenerated = data;
+        }
+
+        async function generateContent() {
+            const name = inputName.value.trim();
+            const link = inputLink.value.trim();
+            const price = inputPrice.value.trim();
+
+            if (!name || !link) {
+                alert('Isi nama dan link produk terlebih dahulu.');
+                return;
+            }
+
+            generateBtn.disabled = true;
+            generateBtn.textContent = '⏳ Generating...';
+            savedSection.classList.add('hidden');
+
+            try {
+                const res = await fetch('/api/threads/generate', {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({ name, link, price }),
+                });
+                const data = await res.json();
+
+                if (data.error) {
+                    alert('Gagal: ' + data.error);
+                    return;
+                }
+
+                showOutput(data);
+            } catch (e) {
+                alert('Gagal generate konten: ' + e.message);
+            } finally {
+                generateBtn.disabled = false;
+                generateBtn.textContent = '✨ Generate Threads Content';
+            }
+        }
+
+        async function saveContent() {
+            if (!currentProductId || !lastGenerated) {
+                alert('Pilih produk dan generate konten terlebih dahulu.');
+                return;
+            }
+
+            const saveBtn = document.getElementById('saveBtn');
+            saveBtn.disabled = true;
+            saveBtn.textContent = '⏳ Menyimpan...';
+
+            try {
+                const res = await fetch('/api/threads/save', {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({
+                        product_id: currentProductId,
+                        content: JSON.stringify(lastGenerated),
+                    }),
+                });
+                const data = await res.json();
+
+                if (data.success) {
+                    savedSection.classList.remove('hidden');
+                    showToast('Berhasil disimpan ke Sheet!');
+                } else {
+                    alert('Gagal simpan: ' + (data.error || 'Unknown error'));
+                }
+            } catch (e) {
+                alert('Gagal simpan: ' + e.message);
+            } finally {
+                saveBtn.disabled = false;
+                saveBtn.textContent = '💾 Simpan ke Sheet';
+            }
+        }
+
+        function copyToClipboard(elementId) {
+            const el = document.getElementById(elementId);
+            navigator.clipboard.writeText(el.value).then(() => {
+                showToast('Berhasil disalin!');
+            });
+        }
+
+        function showToast(message) {
+            const toast = document.getElementById('toast');
+            toast.textContent = message;
+            toast.classList.remove('translate-y-20', 'opacity-0');
+            setTimeout(() => {
+                toast.classList.add('translate-y-20', 'opacity-0');
+            }, 2000);
+        }
+    </script>
+</body>
+</html>

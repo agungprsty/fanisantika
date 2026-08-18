@@ -83,6 +83,16 @@ def _ensure_caption_column(worksheet):
     log.info("Added 'caption' column to sheet header (col %d)", col_idx)
 
 
+def _ensure_threads_column(worksheet):
+    """Add threads_content column (H) to header if it doesn't exist."""
+    header_lower = [h.lower() for h in worksheet.row_values(1)]
+    if "threads_content" in header_lower:
+        return
+    col_idx = len(header_lower) + 1
+    worksheet.update_cell(1, col_idx, "threads_content")
+    log.info("Added 'threads_content' column to sheet header (col %d)", col_idx)
+
+
 def _cache_key(credentials_json: str, spreadsheet_id: str) -> str:
     """Generate a deterministic cache key."""
     return f"{hash(credentials_json)}:{spreadsheet_id}"
@@ -92,6 +102,7 @@ def _fetch_and_cache(credentials_json: str, spreadsheet_id: str) -> list[Product
     """Fetch all products from sheet, sort, store in cache, and return."""
     worksheet = get_spreadsheet(credentials_json, spreadsheet_id).sheet1
     _ensure_caption_column(worksheet)
+    _ensure_threads_column(worksheet)
     rows = worksheet.get_all_records()
 
     result = []
@@ -207,8 +218,9 @@ def append_product(
     """
     worksheet = get_spreadsheet(credentials_json, spreadsheet_id).sheet1
 
-    # Ensure caption column exists
+    # Ensure caption and threads columns exist
     _ensure_caption_column(worksheet)
+    _ensure_threads_column(worksheet)
 
     # Use cached max_id; recompute only if reset by a previous operation
     if _max_id == 0:
@@ -290,6 +302,49 @@ def update_product_caption(
         product_id=product_id,
         caption=caption,
     )
+
+
+def update_product_threads(
+    credentials_json: str,
+    spreadsheet_id: str,
+    product_id: int,
+    threads_content: str,
+) -> bool:
+    """Update only the threads_content for a given product.
+
+    Returns True if found and updated, False otherwise.
+    """
+    worksheet = get_spreadsheet(credentials_json, spreadsheet_id).sheet1
+    _ensure_threads_column(worksheet)
+    all_rows = worksheet.get_all_values()
+
+    # Find threads column index from header
+    header = [h.lower() for h in all_rows[0]] if all_rows else []
+    threads_col = None
+    for idx, h in enumerate(header):
+        if h == "threads_content":
+            threads_col = idx + 1  # 1-based
+            break
+
+    if not threads_col:
+        threads_col = len(header) + 1
+        worksheet.update_cell(1, threads_col, "threads_content")
+
+    for i, row in enumerate(all_rows):
+        if i == 0:
+            continue
+        if row and row[0].isdigit() and int(row[0]) == product_id:
+            row_idx = i + 1
+            worksheet.update_cell(row_idx, threads_col, threads_content)
+            log.info("Updated threads_content for product id=%d", product_id)
+
+            key = _cache_key(credentials_json, spreadsheet_id)
+            _products_cache.pop(key, None)
+            _reset_max_id_if_needed(credentials_json, spreadsheet_id)
+            return True
+
+    log.warning("Product id=%d not found for threads update", product_id)
+    return False
 
 
 def delete_product_row(
