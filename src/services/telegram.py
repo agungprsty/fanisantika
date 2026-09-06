@@ -224,7 +224,7 @@ async def _extract_product_info_from_ai(
         try:
             response = await asyncio.wait_for(
                 client.chat.completions.create(
-                    model="openrouter/free",
+                    model="minimax/minimax-m3:free",
                     messages=[
                         {"role": "system", "content": _EXTRACT_SYSTEM_PROMPT},
                         {"role": "user", "content": prompt},

@@ -15,6 +15,7 @@ class Settings(BaseSettings):
     ADMIN_USERNAME: str
     ADMIN_PASSWORD: str
 
+    OPENROUTER_API_KEY: str = ""
     GEMINI_API_KEY: str = ""
     CAPTION_ENABLED: bool = True
     BASE_URL: str = ""
