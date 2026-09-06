@@ -5,7 +5,7 @@ import json
 import logging
 import re
 
-from fastapi import APIRouter, Request, BackgroundTasks
+from fastapi import APIRouter, Request
 from fastapi.responses import JSONResponse
 
 from src.config import settings
@@ -475,7 +475,7 @@ async def _handle_callback_query(callback_query: dict) -> None:
 # ── Routes ───────────────────────────────────────────────────────────────────
 
 @router.post("/webhook")
-async def webhook(request: Request, background_tasks: BackgroundTasks):
+async def webhook(request: Request):
     """Handle incoming Telegram webhook messages."""
     try:
         body = await request.json()
@@ -484,7 +484,7 @@ async def webhook(request: Request, background_tasks: BackgroundTasks):
 
     if "callback_query" in body:
         callback_query = body["callback_query"]
-        background_tasks.add_task(_handle_callback_query, callback_query)
+        await _handle_callback_query(callback_query)
         return JSONResponse(status_code=200, content={"ok": True})
 
     chat_id = str(body.get("message", {}).get("chat", {}).get("id", ""))
@@ -615,8 +615,8 @@ async def webhook(request: Request, background_tasks: BackgroundTasks):
                         content=_format_error("ID harus berupa angka.", chat_id),
                     )
                 
-                # trigger callback logic asynchronously by mimicking callback query
-                background_tasks.add_task(_handle_callback_query, {
+                # await callback logic directly for serverless compatibility
+                await _handle_callback_query({
                     "id": "cmd", "message": {"chat": {"id": chat_id}}, "data": f"gen_threads:{product_id}"
                 })
                 return JSONResponse(status_code=200, content={"ok": True})
@@ -639,8 +639,8 @@ async def webhook(request: Request, background_tasks: BackgroundTasks):
                         content=_format_error("ID harus berupa angka.", chat_id),
                     )
                 
-                # trigger callback logic asynchronously
-                background_tasks.add_task(_handle_callback_query, {
+                # await callback logic directly for serverless compatibility
+                await _handle_callback_query({
                     "id": "cmd", "message": {"chat": {"id": chat_id}}, "data": f"track_clicks:{product_id}"
                 })
                 return JSONResponse(status_code=200, content={"ok": True})

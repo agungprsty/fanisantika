@@ -3,7 +3,7 @@
 import logging
 from pathlib import Path
 
-from fastapi import FastAPI, Request, BackgroundTasks
+from fastapi import FastAPI, Request
 from fastapi.responses import HTMLResponse, JSONResponse, RedirectResponse
 from fastapi.templating import Jinja2Templates
 
@@ -49,7 +49,7 @@ def _set_csrf(response, csrf_token):
 # ── Public Routes ──────────────────────────────────────────────
 
 @app.get("/r/{pid}", response_class=RedirectResponse)
-async def redirect_to_product(pid: int, background_tasks: BackgroundTasks, src: str = ""):
+async def redirect_to_product(pid: int, src: str = ""):
     """Fast redirect to affiliate link and track click."""
     try:
         products = read_all_products(
@@ -62,9 +62,8 @@ async def redirect_to_product(pid: int, background_tasks: BackgroundTasks, src: 
         if not product or not product.link:
             return RedirectResponse(url="/", status_code=303)
         
-        # Asynchronously increment clicks
-        background_tasks.add_task(
-            increment_product_clicks,
+        # Increment clicks synchronously for Vercel Serverless compatibility
+        increment_product_clicks(
             settings.GOOGLE_SHEETS_CREDENTIALS,
             settings.SPREADSHEET_ID,
             pid
