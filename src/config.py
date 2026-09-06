@@ -17,6 +17,7 @@ class Settings(BaseSettings):
 
     GEMINI_API_KEY: str = ""
     CAPTION_ENABLED: bool = True
+    BASE_URL: str = ""
 
     class Config:
         env_file = ".env"

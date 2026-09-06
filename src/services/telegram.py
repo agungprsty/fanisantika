@@ -5,7 +5,7 @@ import json
 import logging
 import re
 
-from fastapi import APIRouter, Request
+from fastapi import APIRouter, Request, BackgroundTasks
 from fastapi.responses import JSONResponse
 
 from src.config import settings
@@ -141,6 +141,23 @@ async def _send_telegram_message(chat_id: str, text: str) -> None:
         log.error(f"Failed to send Telegram fallback message: {e}")
 
 
+async def _answer_callback_query(callback_query_id: str, text: str) -> None:
+    """Answer a callback query with a toast notification."""
+    if not settings.TELEGRAM_BOT_TOKEN:
+        return
+    import httpx
+
+    url = f"https://api.telegram.org/bot{settings.TELEGRAM_BOT_TOKEN}/answerCallbackQuery"
+    try:
+        async with httpx.AsyncClient(timeout=5) as client:
+            await client.post(url, json={
+                "callback_query_id": callback_query_id,
+                "text": text,
+            })
+    except Exception as e:
+        log.error(f"Failed to answer callback query: {e}")
+
+
 # ── AI extraction ───────────────────────────────────────────────────────────
 
 _EXTRACT_SYSTEM_PROMPT = (
@@ -262,9 +279,12 @@ def _build_help_text() -> str:
         "Atau copy-paste langsung dari Shopee:\n"
         "<code>Temukan JamDinding Ukir HOME Sweet Hme Bunga Matahari Hiasan Dinding Ruang Tamu Kamar tidur seharga Rp34.002. Dapatkan sekarang juga di Shopee! https://s.shopee.co.id/2BDNa9ihtR?share_channel_code=2</code>\n\n"
         "<b>Perintah:</b>\n"
-        "• <code>/add link, nama, harga</code> — Simpan produk (format koma)\n"
-        "• <code>/edit 3</code> — Edit produk #3 (kirim: <code>nama baru, harga baru</code>)\n"
-        "• <code>/help</code> — Tampilkan pesan ini\n\n"
+        "• <code>/add link, nama, harga</code> — Simpan produk\n"
+        "• <code>/threads &lt;id&gt;</code> — Generate Threads\n"
+        "• <code>/track &lt;id&gt;</code> — Cek klik produk\n"
+        "• <code>/stats</code> — Top 5 klik terbanyak\n"
+        "• <code>/edit &lt;id&gt;</code> — Edit produk\n"
+        "• <code>/help</code> — Bantuan\n\n"
         "<i>Nama produk wajib diisi.</i>"
     )
 
@@ -319,7 +339,22 @@ def _format_reply(product: Product, chat_id: str) -> dict:
     text += f"\n🏷️ <b>Type:</b> {product.type}\n"
     text += f"📅 <b>Disimpan:</b> {_format_datetime(product.created_at)}"
 
-    return {"method": "sendMessage", "chat_id": chat_id, "text": text, "parse_mode": "HTML"}
+    reply_markup = {
+        "inline_keyboard": [
+            [
+                {"text": "🧵 Buat Threads", "callback_data": f"gen_threads:{product.id}"},
+                {"text": "📊 Cek Tracking", "callback_data": f"track_clicks:{product.id}"}
+            ]
+        ]
+    }
+
+    return {
+        "method": "sendMessage",
+        "chat_id": chat_id,
+        "text": text,
+        "parse_mode": "HTML",
+        "reply_markup": reply_markup
+    }
 
 
 def _format_error(message: str, chat_id: str) -> dict:
@@ -332,15 +367,125 @@ def _format_error(message: str, chat_id: str) -> dict:
     }
 
 
+
+async def _send_threads_output(chat_id: str, product, threads_content: list) -> None:
+    """Format and send threads content as copyable blocks."""
+    if not threads_content or len(threads_content) < 3:
+        await _send_telegram_message(chat_id, "<b>❌ Gagal generate threads</b>\nFormat dari AI tidak sesuai.")
+        return
+
+    base_url = settings.BASE_URL if settings.BASE_URL else "https://your-domain.com"
+    smart_link = f"{base_url}/r/{product.id}?src=threads"
+    
+    # Replace link in CTA (Post 3) with smart link
+    post_3 = threads_content[2].get("content", "")
+    post_3 = re.sub(r"\[Link.*?\]", smart_link, post_3, flags=re.IGNORECASE)
+    post_3 = re.sub(r"Link.*?:", f"Link: {smart_link}", post_3, flags=re.IGNORECASE)
+    if smart_link not in post_3:
+        post_3 += f"\n\nCek di sini: {smart_link}"
+
+    text = f"🧵 <b>Threads Siap Posting — #{product.id}</b>\n\n"
+    text += f"<b>📌 Post 1 (Hook Utama):</b>\n<code>{threads_content[0].get('content', '')}</code>\n\n"
+    text += f"<b>💡 Post 2 (Solusi Rasional):</b>\n<code>{threads_content[1].get('content', '')}</code>\n\n"
+    text += f"<b>🔗 Post 3 (CTA & Smart Link):</b>\n<code>{post_3}</code>\n\n"
+    text += "<i>Klik pada blok teks untuk langsung menyalin!</i>"
+    
+    await _send_telegram_message(chat_id, text)
+
+
+async def _handle_callback_query(callback_query: dict) -> None:
+    """Handle inline keyboard callbacks."""
+    callback_id = callback_query.get("id", "")
+    chat_id = str(callback_query.get("message", {}).get("chat", {}).get("id", ""))
+    data = callback_query.get("data", "")
+
+    if not callback_id or not chat_id or not data:
+        return
+
+    try:
+        if data.startswith("gen_threads:"):
+            await _answer_callback_query(callback_id, "⏳ Sedang meracik konten Threads...")
+            product_id = int(data.split(":")[1])
+            
+            # Fetch product
+            products = read_all_products(
+                settings.GOOGLE_SHEETS_CREDENTIALS,
+                settings.SPREADSHEET_ID,
+                limit=9999,
+                offset=0,
+            )
+            product = next((p for p in products if p.id == product_id), None)
+            
+            if not product:
+                await _send_telegram_message(chat_id, "❌ Produk tidak ditemukan.")
+                return
+                
+            from src.services.ai import generate_threads_content
+            from src.services.sheets import update_product_threads
+            import json
+            
+            threads_content = await generate_threads_content(
+                name=product.name,
+                description=product.name,
+                price=product.price,
+                link=product.link
+            )
+            
+            if threads_content:
+                update_product_threads(
+                    settings.GOOGLE_SHEETS_CREDENTIALS,
+                    settings.SPREADSHEET_ID,
+                    product_id,
+                    json.dumps(threads_content)
+                )
+                await _send_threads_output(chat_id, product, threads_content)
+            else:
+                await _send_telegram_message(chat_id, "❌ Gagal generate threads dari AI.")
+                
+        elif data.startswith("track_clicks:"):
+            await _answer_callback_query(callback_id, "Memuat data tracking...")
+            product_id = int(data.split(":")[1])
+            
+            products = read_all_products(
+                settings.GOOGLE_SHEETS_CREDENTIALS,
+                settings.SPREADSHEET_ID,
+                limit=9999,
+                offset=0,
+            )
+            product = next((p for p in products if p.id == product_id), None)
+            
+            if not product:
+                await _send_telegram_message(chat_id, "❌ Produk tidak ditemukan.")
+                return
+                
+            base_url = settings.BASE_URL if settings.BASE_URL else "https://your-domain.com"
+            smart_link = f"{base_url}/r/{product.id}?src=threads"
+            
+            text = f"📊 <b>Tracking Report — #{product.id}</b>\n\n"
+            text += f"📦 <b>Produk:</b> {product.name}\n"
+            text += f"🔗 <b>Smart Link:</b> <code>{smart_link}</code>\n"
+            text += f"👆 <b>Total Klik:</b> {getattr(product, 'clicks', 0)}\n"
+            
+            await _send_telegram_message(chat_id, text)
+            
+    except Exception as e:
+        log.error(f"Error handling callback query: {e}")
+        await _send_telegram_message(chat_id, "❌ Terjadi kesalahan saat memproses permintaan.")
+
 # ── Routes ───────────────────────────────────────────────────────────────────
 
 @router.post("/webhook")
-async def webhook(request: Request):
+async def webhook(request: Request, background_tasks: BackgroundTasks):
     """Handle incoming Telegram webhook messages."""
     try:
         body = await request.json()
     except Exception:
         return JSONResponse(status_code=400, content={"error": "Invalid JSON"})
+
+    if "callback_query" in body:
+        callback_query = body["callback_query"]
+        background_tasks.add_task(_handle_callback_query, callback_query)
+        return JSONResponse(status_code=200, content={"ok": True})
 
     chat_id = str(body.get("message", {}).get("chat", {}).get("id", ""))
     text = body.get("message", {}).get("text", "") or body.get("message", {}).get("caption", "")
@@ -449,6 +594,80 @@ async def webhook(request: Request):
                 return JSONResponse(
                     status_code=200,
                     content=_format_reply(product, chat_id),
+                )
+
+
+            if command in ("/threads", "/thread"):
+                if not args:
+                    return JSONResponse(
+                        status_code=200,
+                        content=_format_error(
+                            "Format: <code>/threads &lt;id&gt;</code>\n\n"
+                            "Contoh: <code>/threads 3</code>",
+                            chat_id,
+                        ),
+                    )
+                try:
+                    product_id = int(args)
+                except ValueError:
+                    return JSONResponse(
+                        status_code=200,
+                        content=_format_error("ID harus berupa angka.", chat_id),
+                    )
+                
+                # trigger callback logic asynchronously by mimicking callback query
+                background_tasks.add_task(_handle_callback_query, {
+                    "id": "cmd", "message": {"chat": {"id": chat_id}}, "data": f"gen_threads:{product_id}"
+                })
+                return JSONResponse(status_code=200, content={"ok": True})
+                
+            if command in ("/track",):
+                if not args:
+                    return JSONResponse(
+                        status_code=200,
+                        content=_format_error(
+                            "Format: <code>/track &lt;id&gt;</code>\n\n"
+                            "Contoh: <code>/track 3</code>",
+                            chat_id,
+                        ),
+                    )
+                try:
+                    product_id = int(args)
+                except ValueError:
+                    return JSONResponse(
+                        status_code=200,
+                        content=_format_error("ID harus berupa angka.", chat_id),
+                    )
+                
+                # trigger callback logic asynchronously
+                background_tasks.add_task(_handle_callback_query, {
+                    "id": "cmd", "message": {"chat": {"id": chat_id}}, "data": f"track_clicks:{product_id}"
+                })
+                return JSONResponse(status_code=200, content={"ok": True})
+                
+            if command in ("/stats", "/top"):
+                products = read_all_products(
+                    settings.GOOGLE_SHEETS_CREDENTIALS,
+                    settings.SPREADSHEET_ID,
+                    limit=9999,
+                    offset=0,
+                )
+                sorted_products = sorted(products, key=lambda p: getattr(p, 'clicks', 0), reverse=True)
+                top_5 = sorted_products[:5]
+                
+                text = "🏆 <b>Top 5 Produk (Klik Terbanyak)</b>\n\n"
+                for idx, p in enumerate(top_5, 1):
+                    text += f"{idx}. <b>{p.name}</b>\n"
+                    text += f"   👆 {getattr(p, 'clicks', 0)} klik | #{p.id}\n\n"
+                    
+                return JSONResponse(
+                    status_code=200,
+                    content={
+                        "method": "sendMessage",
+                        "chat_id": chat_id,
+                        "text": text,
+                        "parse_mode": "HTML",
+                    },
                 )
 
             if command in ("/edit",):
@@ -600,9 +819,10 @@ async def webhook(request: Request):
         else:
             # Case 2: free-form message — use extracted URL, AI for name enrichment
             parsed["link"] = link
-            # Reset name if comma-split produced invalid link (garbage text)
-            if not _validate_link(parsed.get("link", "")):
-                parsed["name"] = ""
+            # Since comma-split produced invalid link, it was a free-form text.
+            # We must discard the arbitrary name and price from the comma split.
+            parsed["name"] = ""
+            parsed["price"] = ""
 
             if not parsed["name"]:
                 # Try to extract price from text as regex fallback

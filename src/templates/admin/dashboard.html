@@ -1,14 +1,17 @@
 <!DOCTYPE html>
 <html lang="id">
+
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>{% if show_login %}Login Admin{% else %}Admin Dashboard{% endif %} — Affiliate Katalog</title>
 
-    <link rel="icon" href="data:image/svg+xml,<svg xmlns=%22http://www.w3.org/2000/svg%22 viewBox=%220 0 100 100%22><text y=%22.9em%22 font-size=%2290%22>💗</text></svg>">
+    <link rel="icon"
+        href="data:image/svg+xml,<svg xmlns=%22http://www.w3.org/2000/svg%22 viewBox=%220 0 100 100%22><text y=%22.9em%22 font-size=%2290%22>💗</text></svg>">
     <link rel="preconnect" href="https://fonts.googleapis.com">
     <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
-    <link href="https://fonts.googleapis.com/css2?family=Playball&family=Montserrat:wght@400;600;700&display=swap" rel="stylesheet">
+    <link href="https://fonts.googleapis.com/css2?family=Playball&family=Montserrat:wght@400;600;700&display=swap"
+        rel="stylesheet">
     <script src="https://cdn.tailwindcss.com"></script>
     <script>
         tailwind.config = {
@@ -27,11 +30,21 @@
         };
     </script>
     <style>
-        ::-webkit-scrollbar { width: 5px; }
-        ::-webkit-scrollbar-track { background: var(--soft-pink); }
-        ::-webkit-scrollbar-thumb { background: var(--main-pink); border-radius: 10px; }
+        ::-webkit-scrollbar {
+            width: 5px;
+        }
+
+        ::-webkit-scrollbar-track {
+            background: var(--soft-pink);
+        }
+
+        ::-webkit-scrollbar-thumb {
+            background: var(--main-pink);
+            border-radius: 10px;
+        }
     </style>
 </head>
+
 <body class="min-h-screen bg-soft-pink flex flex-col items-center py-8 px-4">
 
     {% if show_login %}
@@ -40,21 +53,26 @@
     <div class="w-full max-w-sm mt-20">
         <div class="text-center mb-10">
             <h1 class="text-3xl text-deep-pink font-cursive mb-2">Admin</h1>
-            <p class="text-[10px] uppercase tracking-[0.2em] text-rose-400 font-semibold">Affiliate Katalog Dashboard</p>
+            <p class="text-[10px] uppercase tracking-[0.2em] text-rose-400 font-semibold">Affiliate Katalog Dashboard
+            </p>
             <div class="h-[1px] w-12 bg-rose-200 mx-auto mt-4"></div>
         </div>
-        <form method="POST" action="/login" class="bg-white/70 backdrop-blur-md rounded-2xl shadow-sm border border-rose-100 p-8">
+        <form method="POST" action="/login"
+            class="bg-white/70 backdrop-blur-md rounded-2xl shadow-sm border border-rose-100 p-8">
             <input type="hidden" name="csrf_token" value="{{ csrf_token }}">
             {% if error %}
-            <div class="bg-rose-50 border border-rose-200 text-rose-700 text-xs rounded-xl px-4 py-3 mb-5">{{ error }}</div>
+            <div class="bg-rose-50 border border-rose-200 text-rose-700 text-xs rounded-xl px-4 py-3 mb-5">{{ error }}
+            </div>
             {% endif %}
             <div class="mb-5">
-                <label class="text-[11px] uppercase tracking-wider text-rose-500 font-semibold block mb-2">Username</label>
+                <label
+                    class="text-[11px] uppercase tracking-wider text-rose-500 font-semibold block mb-2">Username</label>
                 <input type="text" name="username" required
                     class="w-full bg-white/80 py-3 px-4 rounded-xl border border-rose-100 focus:outline-none focus:ring-2 focus:ring-rose-300 text-sm">
             </div>
             <div class="mb-6">
-                <label class="text-[11px] uppercase tracking-wider text-rose-500 font-semibold block mb-2">Password</label>
+                <label
+                    class="text-[11px] uppercase tracking-wider text-rose-500 font-semibold block mb-2">Password</label>
                 <input type="password" name="password" required
                     class="w-full bg-white/80 py-3 px-4 rounded-xl border border-rose-100 focus:outline-none focus:ring-2 focus:ring-rose-300 text-sm">
             </div>
@@ -83,14 +101,17 @@
 
         <div class="bg-white/70 backdrop-blur-md rounded-2xl shadow-sm border border-rose-100 p-8">
             {% if error %}
-            <div class="bg-rose-50 border border-rose-200 text-rose-700 text-xs rounded-xl px-4 py-3 mb-5">{{ error }}</div>
+            <div class="bg-rose-50 border border-rose-200 text-rose-700 text-xs rounded-xl px-4 py-3 mb-5">{{ error }}
+            </div>
             {% endif %}
 
-            <form method="POST" action="{% if form_mode == 'add' %}/product/add{% else %}/product/{{ product.id }}/edit{% endif %}">
+            <form method="POST"
+                action="{% if form_mode == 'add' %}/product/add{% else %}/product/{{ product.id }}/edit{% endif %}">
                 <input type="hidden" name="csrf_token" value="{{ csrf_token }}">
 
                 <div class="mb-4">
-                    <label class="text-[11px] uppercase tracking-wider text-rose-500 font-semibold block mb-2">Link Produk *</label>
+                    <label class="text-[11px] uppercase tracking-wider text-rose-500 font-semibold block mb-2">Link
+                        Produk *</label>
                     {% if form_mode == 'add' %}
                     <input type="url" name="link" required value="{{ product.get('link', '') }}"
                         class="w-full bg-white/80 py-3 px-4 rounded-xl border border-rose-100 focus:outline-none focus:ring-2 focus:ring-rose-300 text-sm">
@@ -101,12 +122,14 @@
                     {% endif %}
                 </div>
                 <div class="mb-4">
-                    <label class="text-[11px] uppercase tracking-wider text-rose-500 font-semibold block mb-2">Nama Produk *</label>
+                    <label class="text-[11px] uppercase tracking-wider text-rose-500 font-semibold block mb-2">Nama
+                        Produk *</label>
                     <input type="text" name="name" required value="{{ product.get('name', '') }}"
                         class="w-full bg-white/80 py-3 px-4 rounded-xl border border-rose-100 focus:outline-none focus:ring-2 focus:ring-rose-300 text-sm">
                 </div>
                 <div class="mb-4">
-                    <label class="text-[11px] uppercase tracking-wider text-rose-500 font-semibold block mb-2">Harga (opsional)</label>
+                    <label class="text-[11px] uppercase tracking-wider text-rose-500 font-semibold block mb-2">Harga
+                        (opsional)</label>
                     <input type="text" name="price" value="{{ product.get('price', '') }}"
                         class="w-full bg-white/80 py-3 px-4 rounded-xl border border-rose-100 focus:outline-none focus:ring-2 focus:ring-rose-300 text-sm">
                 </div>
@@ -166,8 +189,10 @@
                     <input type="text" name="q" value="{{ q }}" placeholder="Cari produk..."
                         class="w-full bg-white/60 backdrop-blur-md py-3 px-5 rounded-xl border border-rose-100 focus:outline-none focus:ring-2 focus:ring-rose-300 text-sm">
                     <button type="submit" class="absolute right-3 top-2.5 text-rose-300 hover:text-rose-500">
-                        <svg xmlns="http://www.w3.org/2000/svg" class="h-5 w-5" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M21 21l-6-6m2-5a7 7 0 11-14 0 7 7 0 0114 0z" />
+                        <svg xmlns="http://www.w3.org/2000/svg" class="h-5 w-5" fill="none" viewBox="0 0 24 24"
+                            stroke="currentColor">
+                            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2"
+                                d="M21 21l-6-6m2-5a7 7 0 11-14 0 7 7 0 0114 0z" />
                         </svg>
                     </button>
                 </div>
@@ -187,7 +212,7 @@
                             <th class="text-left py-4 px-4 font-semibold w-12">No</th>
                             <th class="text-left py-4 px-4 font-semibold">Nama</th>
                             <th class="text-left py-4 px-4 font-semibold w-20 hidden sm:table-cell">Harga</th>
-                            <th class="text-left py-4 px-4 font-semibold w-20 hidden sm:table-cell">Type</th>
+                            <th class="text-center py-4 px-4 font-semibold w-20">Clicks</th>
                             <th class="text-right py-4 px-4 font-semibold w-32">Aksi</th>
                         </tr>
                     </thead>
@@ -200,8 +225,10 @@
                                 <div class="text-[10px] text-rose-300 truncate max-w-[200px]">{{ product.link }}</div>
                             </td>
                             <td class="py-4 px-4 text-rose-500 text-xs hidden sm:table-cell">{{ product.price }}</td>
-                            <td class="py-4 px-4 hidden sm:table-cell">
-                                <span class="inline-block bg-rose-50 text-rose-600 text-[10px] font-semibold px-2 py-1 rounded-full uppercase tracking-wider">{{ product.type }}</span>
+                            <td class="py-4 px-4 text-center">
+                                <span
+                                    class="inline-block bg-blue-50 text-blue-600 text-[10px] font-bold px-2 py-1 rounded-lg">{{
+                                    product.get('clicks', 0) if product is mapping else product.clicks }}</span>
                             </td>
                             <td class="py-4 px-4 text-right">
                                 <div class="flex items-center justify-end gap-1">
@@ -210,10 +237,11 @@
                                         Edit
                                     </a>
                                     <a href="/threads?pid={{ product.id }}"
-                                        class="text-[11px] text-purple-500 hover:text-purple-700 bg-purple-50 hover:bg-purple-100 px-3 py-1.5 rounded-lg transition-colors">
-                                        🧵
+                                        class="text-[11px] text-rose-500 hover:text-rose-700 bg-rose-50 hover:bg-rose-100 px-3 py-1.5 rounded-lg transition-colors">
+                                        threads
                                     </a>
-                                    <form method="POST" action="/product/{{ product.id }}/delete" class="inline" onsubmit="return confirm('Hapus produk ini?')">
+                                    <form method="POST" action="/product/{{ product.id }}/delete" class="inline"
+                                        onsubmit="return confirm('Hapus produk ini?')">
                                         <input type="hidden" name="csrf_token" value="{{ csrf_token }}">
                                         <button type="submit"
                                             class="text-[11px] text-red-400 hover:text-red-600 bg-red-50 hover:bg-red-100 px-3 py-1.5 rounded-lg transition-colors">
@@ -225,9 +253,11 @@
                         </tr>
                         {% else %}
                         <tr>
-                            <td colspan="5" class="py-16 text-center">
+                            <td colspan="6" class="py-16 text-center">
                                 <p class="text-rose-300 text-xs italic">Belum ada produk.</p>
-                                <a href="/product/add" class="text-main-pink hover:text-deep-pink text-xs underline mt-2 inline-block">Tambah produk pertama</a>
+                                <a href="/product/add"
+                                    class="text-main-pink hover:text-deep-pink text-xs underline mt-2 inline-block">Tambah
+                                    produk pertama</a>
                             </td>
                         </tr>
                         {% endfor %}
@@ -251,7 +281,8 @@
                 &larr; Sebelumnya
             </a>
             {% else %}
-            <span class="bg-rose-50 border border-rose-100 text-rose-300 px-4 py-2 rounded-lg text-xs cursor-not-allowed">
+            <span
+                class="bg-rose-50 border border-rose-100 text-rose-300 px-4 py-2 rounded-lg text-xs cursor-not-allowed">
                 &larr; Sebelumnya
             </span>
             {% endif %}
@@ -281,26 +312,25 @@
             {% endif %}
             {% endfor %}
 
-            {% if end_page < total_pages %}
-            {% if end_page < total_pages - 1 %}
-            <span class="text-rose-300 px-1">...</span>
-            {% endif %}
-            <a href="/dashboard?page={{ total_pages }}{% if q %}&q={{ q }}{% endif %}"
-                class="bg-white border border-rose-200 text-rose-500 hover:bg-rose-50 px-3 py-2 rounded-lg transition-colors text-xs">
-                {{ total_pages }}
-            </a>
-            {% endif %}
+            {% if end_page < total_pages %} {% if end_page < total_pages - 1 %} <span class="text-rose-300 px-1">
+                ...</span>
+                {% endif %}
+                <a href="/dashboard?page={{ total_pages }}{% if q %}&q={{ q }}{% endif %}"
+                    class="bg-white border border-rose-200 text-rose-500 hover:bg-rose-50 px-3 py-2 rounded-lg transition-colors text-xs">
+                    {{ total_pages }}
+                </a>
+                {% endif %}
 
-            {% if page < total_pages %}
-            <a href="/dashboard?page={{ page + 1 }}{% if q %}&q={{ q }}{% endif %}"
-                class="bg-white border border-rose-200 text-rose-500 hover:bg-rose-50 px-4 py-2 rounded-lg transition-colors text-xs font-semibold">
-                Selanjutnya &rarr;
-            </a>
-            {% else %}
-            <span class="bg-rose-50 border border-rose-100 text-rose-300 px-4 py-2 rounded-lg text-xs cursor-not-allowed">
-                Selanjutnya &rarr;
-            </span>
-            {% endif %}
+                {% if page < total_pages %} <a href="/dashboard?page={{ page + 1 }}{% if q %}&q={{ q }}{% endif %}"
+                    class="bg-white border border-rose-200 text-rose-500 hover:bg-rose-50 px-4 py-2 rounded-lg transition-colors text-xs font-semibold">
+                    Selanjutnya &rarr;
+                    </a>
+                    {% else %}
+                    <span
+                        class="bg-rose-50 border border-rose-100 text-rose-300 px-4 py-2 rounded-lg text-xs cursor-not-allowed">
+                        Selanjutnya &rarr;
+                    </span>
+                    {% endif %}
         </div>
         {% endif %}
 
@@ -367,4 +397,5 @@
         });
     </script>
 </body>
+
 </html>

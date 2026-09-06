@@ -93,6 +93,16 @@ def _ensure_threads_column(worksheet):
     log.info("Added 'threads_content' column to sheet header (col %d)", col_idx)
 
 
+def _ensure_clicks_column(worksheet):
+    """Add clicks column (I) to header if it doesn't exist."""
+    header_lower = [h.lower() for h in worksheet.row_values(1)]
+    if "clicks" in header_lower:
+        return
+    col_idx = len(header_lower) + 1
+    worksheet.update_cell(1, col_idx, "clicks")
+    log.info("Added 'clicks' column to sheet header (col %d)", col_idx)
+
+
 def _cache_key(credentials_json: str, spreadsheet_id: str) -> str:
     """Generate a deterministic cache key."""
     return f"{hash(credentials_json)}:{spreadsheet_id}"
@@ -103,6 +113,7 @@ def _fetch_and_cache(credentials_json: str, spreadsheet_id: str) -> list[Product
     worksheet = get_spreadsheet(credentials_json, spreadsheet_id).sheet1
     _ensure_caption_column(worksheet)
     _ensure_threads_column(worksheet)
+    _ensure_clicks_column(worksheet)
     rows = worksheet.get_all_records()
 
     result = []
@@ -115,6 +126,12 @@ def _fetch_and_cache(credentials_json: str, spreadsheet_id: str) -> list[Product
         row_data["price"] = str(row_data.get("price", ""))
         if not row_data.get("type"):
             row_data["type"] = detect_type(row_data.get("link", ""))
+        
+        try:
+            row_data["clicks"] = int(row_data.get("clicks") or 0)
+        except ValueError:
+            row_data["clicks"] = 0
+
         result.append(Product(**row_data))
 
     result.sort(key=lambda r: r.id)
@@ -218,9 +235,10 @@ def append_product(
     """
     worksheet = get_spreadsheet(credentials_json, spreadsheet_id).sheet1
 
-    # Ensure caption and threads columns exist
+    # Ensure caption, threads, and clicks columns exist
     _ensure_caption_column(worksheet)
     _ensure_threads_column(worksheet)
+    _ensure_clicks_column(worksheet)
 
     # Use cached max_id; recompute only if reset by a previous operation
     if _max_id == 0:
@@ -229,8 +247,8 @@ def append_product(
     created_at = datetime.datetime.now(datetime.timezone.utc).isoformat()
     product_type = detect_type(link)
 
-    # Write: id, name, price, link, created_at, type, caption
-    worksheet.append_row([next_no, name, price, link, created_at, product_type, caption])
+    # Write: id, name, price, link, created_at, type, caption, threads_content (empty by default), clicks (0)
+    worksheet.append_row([next_no, name, price, link, created_at, product_type, caption, "", 0])
 
     # Invalidate cache agar data baru langsung terbaca
     key = _cache_key(credentials_json, spreadsheet_id)
@@ -344,6 +362,54 @@ def update_product_threads(
             return True
 
     log.warning("Product id=%d not found for threads update", product_id)
+    return False
+
+
+def increment_product_clicks(
+    credentials_json: str,
+    spreadsheet_id: str,
+    product_id: int,
+) -> bool:
+    """Increment the clicks counter (column I) for a given product by 1.
+
+    Returns True if found and updated, False otherwise.
+    """
+    worksheet = get_spreadsheet(credentials_json, spreadsheet_id).sheet1
+    _ensure_clicks_column(worksheet)
+    all_rows = worksheet.get_all_values()
+
+    # Find clicks column index from header
+    header = [h.lower() for h in all_rows[0]] if all_rows else []
+    clicks_col = None
+    for idx, h in enumerate(header):
+        if h == "clicks":
+            clicks_col = idx + 1  # 1-based
+            break
+
+    if not clicks_col:
+        clicks_col = len(header) + 1
+        worksheet.update_cell(1, clicks_col, "clicks")
+
+    for i, row in enumerate(all_rows):
+        if i == 0:
+            continue
+        if row and row[0].isdigit() and int(row[0]) == product_id:
+            row_idx = i + 1
+            current_clicks_str = row[clicks_col - 1] if len(row) >= clicks_col else "0"
+            try:
+                current_clicks = int(current_clicks_str or "0")
+            except ValueError:
+                current_clicks = 0
+            
+            new_clicks = current_clicks + 1
+            worksheet.update_cell(row_idx, clicks_col, str(new_clicks))
+            log.info("Incremented clicks for product id=%d to %d", product_id, new_clicks)
+
+            key = _cache_key(credentials_json, spreadsheet_id)
+            _products_cache.pop(key, None)
+            return True
+
+    log.warning("Product id=%d not found for clicks update", product_id)
     return False
 
 

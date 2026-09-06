@@ -14,6 +14,7 @@ class Product(BaseModel):
     type: str = "other"
     caption: str = ""
     threads_content: str = ""
+    clicks: int = 0
 
 
 class TelegramMessage(BaseModel):

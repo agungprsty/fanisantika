@@ -59,6 +59,7 @@ src/
 | POST | `/product/{id}/edit` | Update caption | Yes |
 | POST | `/product/{id}/regenerate` | Regenerate caption via AI | Yes |
 | POST | `/product/{id}/delete` | Delete product row from sheet | Yes |
+| GET | `/r/{product_id}` | Fast redirect to affiliate link and track click | No |
 
 ## Telegram Message Format
 
@@ -80,16 +81,20 @@ Register these via BotFather (`/setcommands`):
 | Command | Description |
 |---------|-------------|
 | `/add` | Simpan produk baru (format: /add link, nama, harga) |
+| `/threads <id>` | Generate Threads "Spill di Reply" format |
+| `/track <id>` | Cek jumlah klik untuk produk |
+| `/stats` | Lihat top 5 produk dengan klik terbanyak |
+| `/edit <id>` | Edit nama dan harga produk |
 | `/help` | Tampilkan panduan penggunaan |
 | `/start` | Mulai interaksi dengan bot |
 
 ## Google Sheets Structure
 
-| No | Link | Nama | Harga | Timestamp | Type | caption | threads_content |
-|----|------|------|-------|-----------|------|---------|-----------------|
-| 1 | https://... | Serum Wajah | 45000 | 2026-07-09T... | shopee | Caption... | {"angle_type": "...", "post_1": "...", "post_2": "..."} |
+| No | Link | Nama | Harga | Timestamp | Type | caption | threads_content | clicks |
+|----|------|------|-------|-----------|------|---------|-----------------|--------|
+| 1 | https://... | Serum Wajah | 45000 | 2026-07-09T... | shopee | Caption... | {"angle_type": "...", ...} | 10 |
 
-Column mapping: A=id, B=name, C=price, D=link, E=created_at, F=type, G=caption, H=threads_content
+Column mapping: A=id, B=name, C=price, D=link, E=created_at, F=type, G=caption, H=threads_content, I=clicks
 
 ## Environment Variables
 

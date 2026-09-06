@@ -90,6 +90,10 @@
                 class="w-full bg-threads-purple hover:bg-purple-800 text-white font-semibold py-3 rounded-xl transition-colors text-sm tracking-wider uppercase">
                 ✨ Generate Threads Content
             </button>
+            <div class="mt-4 flex items-center justify-center gap-2">
+                <input type="checkbox" id="useSmartLink" class="rounded text-threads-purple focus:ring-threads-purple" checked>
+                <label for="useSmartLink" class="text-xs text-rose-500 font-medium cursor-pointer">Gunakan Smart Link Tracking (/r/{id})</label>
+            </div>
         </div>
 
         <!-- Output Section -->
@@ -249,11 +253,31 @@
         }
 
         function showOutput(data) {
+            let useSmartLink = document.getElementById('useSmartLink').checked;
+            let smartLink = useSmartLink && currentProductId ? `${window.location.origin}/r/${currentProductId}?src=threads` : inputLink.value;
+
             if (Array.isArray(data) && data.length >= 3) {
                 // New H-P-S-C format
                 post1Output.value = data[0].content || '';
                 post2Output.value = data[1].content || '';
-                post3Output.value = data[2].content || '';
+                let post3 = data[2].content || '';
+                
+                // auto replace link in post 3
+                if (useSmartLink) {
+                    post3 = post3.replace(/\[Link.*?\]/gi, smartLink);
+                    if (!post3.includes(smartLink)) {
+                        post3 = post3.replace(/Link.*?:/gi, `Link: ${smartLink}`);
+                    }
+                    if (!post3.includes(smartLink)) {
+                        post3 += `\n\nCek di sini: ${smartLink}`;
+                    }
+                }
+                
+                post3Output.value = post3;
+                
+                // Update data internally so saving to sheet saves the modified text
+                data[2].content = post3;
+                
                 angleBadge.textContent = 'H-P-S-C Threads';
             } else if (data.post_1_caption) {
                 // Old backward-compatible format

@@ -3,7 +3,7 @@
 import logging
 from pathlib import Path
 
-from fastapi import FastAPI, Request
+from fastapi import FastAPI, Request, BackgroundTasks
 from fastapi.responses import HTMLResponse, JSONResponse, RedirectResponse
 from fastapi.templating import Jinja2Templates
 
@@ -25,6 +25,7 @@ from src.services.sheets import (
     update_product,
     update_product_caption,
     update_product_threads,
+    increment_product_clicks,
 )
 from src.services.telegram import router as webhook_router
 
@@ -46,6 +47,34 @@ def _set_csrf(response, csrf_token):
 
 
 # ── Public Routes ──────────────────────────────────────────────
+
+@app.get("/r/{pid}", response_class=RedirectResponse)
+async def redirect_to_product(pid: int, background_tasks: BackgroundTasks, src: str = ""):
+    """Fast redirect to affiliate link and track click."""
+    try:
+        products = read_all_products(
+            settings.GOOGLE_SHEETS_CREDENTIALS,
+            settings.SPREADSHEET_ID,
+            limit=9999,
+            offset=0,
+        )
+        product = next((p for p in products if p.id == pid), None)
+        if not product or not product.link:
+            return RedirectResponse(url="/", status_code=303)
+        
+        # Asynchronously increment clicks
+        background_tasks.add_task(
+            increment_product_clicks,
+            settings.GOOGLE_SHEETS_CREDENTIALS,
+            settings.SPREADSHEET_ID,
+            pid
+        )
+        
+        # 307 Temporary Redirect preserves the method
+        return RedirectResponse(url=product.link, status_code=307)
+    except Exception as e:
+        log.error(f"Redirect failed for pid {pid}: {e}")
+        return RedirectResponse(url="/", status_code=303)
 
 
 @app.get("/", response_class=HTMLResponse)
