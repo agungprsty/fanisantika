@@ -71,6 +71,11 @@
                     class="w-full bg-white/80 py-3 px-4 rounded-xl border border-rose-100 focus:outline-none focus:ring-2 focus:ring-threads-purple text-sm">
             </div>
             <div class="mb-4">
+                <label class="text-[11px] uppercase tracking-wider text-rose-500 font-semibold block mb-2">Deskripsi Produk *</label>
+                <textarea id="inputDescription" rows="2" placeholder="Keunggulan, manfaat, atau spesifikasi singkat..."
+                    class="w-full bg-white/80 py-3 px-4 rounded-xl border border-rose-100 focus:outline-none focus:ring-2 focus:ring-threads-purple text-sm resize-none"></textarea>
+            </div>
+            <div class="mb-4">
                 <label class="text-[11px] uppercase tracking-wider text-rose-500 font-semibold block mb-2">Link Produk *</label>
                 <input type="url" id="inputLink" placeholder="https://shopee.co.id/..."
                     class="w-full bg-white/80 py-3 px-4 rounded-xl border border-rose-100 focus:outline-none focus:ring-2 focus:ring-threads-purple text-sm">
@@ -95,32 +100,56 @@
             </div>
 
             <!-- Post 1 -->
-            <div class="mb-5">
-                <div class="flex items-center justify-between mb-2">
-                    <label class="text-[11px] uppercase tracking-wider text-threads-purple font-semibold">Post 1 (Engagement Bait)</label>
-                    <span id="charCount" class="text-[10px] text-rose-400">0/250</span>
-                </div>
-                <div class="relative">
-                    <textarea id="post1Output" rows="4" readonly
-                        class="w-full bg-purple-50/50 py-3 px-4 rounded-xl border border-threads-light focus:outline-none text-sm resize-none"></textarea>
+            <div class="mb-5 bg-white/50 p-4 rounded-2xl border border-rose-50/50">
+                <div class="flex items-center justify-between mb-3">
+                    <div class="flex items-center gap-2">
+                        <label class="text-[11px] uppercase tracking-wider text-threads-purple font-semibold">Post 1 (Hook)</label>
+                        <span id="charCount" class="text-[10px] text-rose-400 bg-rose-50 px-2 py-0.5 rounded-full font-medium">0/280</span>
+                    </div>
                     <button type="button" onclick="copyToClipboard('post1Output')"
-                        class="absolute top-2 right-2 bg-white hover:bg-purple-100 text-threads-purple text-[10px] font-semibold px-3 py-1.5 rounded-lg transition-colors border border-threads-light">
-                        📋 Copy
+                        class="text-threads-purple bg-white hover:bg-threads-light text-[10px] font-bold px-3 py-1.5 rounded-lg transition-all flex items-center gap-1 shadow-sm border border-threads-light/50">
+                        <svg xmlns="http://www.w3.org/2000/svg" class="h-3 w-3" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M8 16H6a2 2 0 01-2-2V6a2 2 0 012-2h8a2 2 0 012 2v2m-6 12h8a2 2 0 002-2v-8a2 2 0 00-2-2h-8a2 2 0 00-2 2v8a2 2 0 002 2z" /></svg>
+                        Salin
                     </button>
                 </div>
+                <textarea id="post1Output" rows="4" readonly
+                    class="w-full bg-white/80 py-3 px-4 rounded-xl border border-rose-100 focus:outline-none focus:ring-2 focus:ring-threads-light text-sm resize-none text-gray-700 leading-relaxed shadow-inner"></textarea>
             </div>
 
             <!-- Post 2 -->
-            <div class="mb-5">
-                <label class="text-[11px] uppercase tracking-wider text-threads-purple font-semibold block mb-2">Post 2 (Reply + Link)</label>
-                <div class="relative">
-                    <textarea id="post2Output" rows="4" readonly
-                        class="w-full bg-purple-50/50 py-3 px-4 rounded-xl border border-threads-light focus:outline-none text-sm resize-none"></textarea>
+            <div class="mb-5 bg-white/50 p-4 rounded-2xl border border-rose-50/50">
+                <div class="flex items-center justify-between mb-3">
+                    <label class="text-[11px] uppercase tracking-wider text-threads-purple font-semibold">Post 2 (Solusi)</label>
                     <button type="button" onclick="copyToClipboard('post2Output')"
-                        class="absolute top-2 right-2 bg-white hover:bg-purple-100 text-threads-purple text-[10px] font-semibold px-3 py-1.5 rounded-lg transition-colors border border-threads-light">
-                        📋 Copy
+                        class="text-threads-purple bg-white hover:bg-threads-light text-[10px] font-bold px-3 py-1.5 rounded-lg transition-all flex items-center gap-1 shadow-sm border border-threads-light/50">
+                        <svg xmlns="http://www.w3.org/2000/svg" class="h-3 w-3" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M8 16H6a2 2 0 01-2-2V6a2 2 0 012-2h8a2 2 0 012 2v2m-6 12h8a2 2 0 002-2v-8a2 2 0 00-2-2h-8a2 2 0 00-2 2v8a2 2 0 002 2z" /></svg>
+                        Salin
                     </button>
                 </div>
+                <textarea id="post2Output" rows="4" readonly
+                    class="w-full bg-white/80 py-3 px-4 rounded-xl border border-rose-100 focus:outline-none focus:ring-2 focus:ring-threads-light text-sm resize-none text-gray-700 leading-relaxed shadow-inner"></textarea>
+            </div>
+
+            <!-- Post 3 -->
+            <div class="mb-6 bg-white/50 p-4 rounded-2xl border border-rose-50/50">
+                <div class="flex items-center justify-between mb-3">
+                    <label class="text-[11px] uppercase tracking-wider text-threads-purple font-semibold">Post 3 (CTA)</label>
+                    <button type="button" onclick="copyToClipboard('post3Output')"
+                        class="text-threads-purple bg-white hover:bg-threads-light text-[10px] font-bold px-3 py-1.5 rounded-lg transition-all flex items-center gap-1 shadow-sm border border-threads-light/50">
+                        <svg xmlns="http://www.w3.org/2000/svg" class="h-3 w-3" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M8 16H6a2 2 0 01-2-2V6a2 2 0 012-2h8a2 2 0 012 2v2m-6 12h8a2 2 0 002-2v-8a2 2 0 00-2-2h-8a2 2 0 00-2 2v8a2 2 0 002 2z" /></svg>
+                        Salin
+                    </button>
+                </div>
+                <textarea id="post3Output" rows="3" readonly
+                    class="w-full bg-white/80 py-3 px-4 rounded-xl border border-rose-100 focus:outline-none focus:ring-2 focus:ring-threads-light text-sm resize-none text-gray-700 leading-relaxed shadow-inner"></textarea>
+            </div>
+
+            <!-- Copy All Button -->
+            <div class="mb-5">
+                <button type="button" onclick="copyAllThreads()"
+                    class="w-full border border-threads-purple text-threads-purple font-semibold py-2 rounded-xl hover:bg-threads-light transition-colors text-sm">
+                    📋 Salin Semua (Full Thread)
+                </button>
             </div>
 
             <!-- Action Buttons -->
@@ -159,12 +188,14 @@
     <script>
         const productSelect = document.getElementById('productSelect');
         const inputName = document.getElementById('inputName');
+        const inputDescription = document.getElementById('inputDescription');
         const inputLink = document.getElementById('inputLink');
         const inputPrice = document.getElementById('inputPrice');
         const generateBtn = document.getElementById('generateBtn');
         const outputSection = document.getElementById('outputSection');
         const post1Output = document.getElementById('post1Output');
         const post2Output = document.getElementById('post2Output');
+        const post3Output = document.getElementById('post3Output');
         const angleBadge = document.getElementById('angleBadge');
         const charCount = document.getElementById('charCount');
         const savedSection = document.getElementById('savedSection');
@@ -184,6 +215,7 @@
             const option = this.options[this.selectedIndex];
             if (this.value) {
                 inputName.value = option.dataset.name || '';
+                inputDescription.value = ''; // Reset description
                 inputLink.value = option.dataset.link || '';
                 inputPrice.value = option.dataset.price || '';
                 currentProductId = parseInt(this.value);
@@ -212,21 +244,48 @@
 
         function updateCharCount() {
             const len = post1Output.value.length;
-            charCount.textContent = `${len}/250`;
-            charCount.className = len > 250 ? 'text-[10px] text-red-500 font-semibold' : 'text-[10px] text-rose-400';
+            charCount.textContent = `${len}/280`;
+            charCount.className = len > 280 ? 'text-[10px] text-red-500 font-semibold' : 'text-[10px] text-rose-400';
         }
 
         function showOutput(data) {
-            post1Output.value = data.post_1_caption || '';
-            post2Output.value = data.post_2_reply_cta || '';
-            angleBadge.textContent = data.angle_type || '';
+            if (Array.isArray(data) && data.length >= 3) {
+                // New H-P-S-C format
+                post1Output.value = data[0].content || '';
+                post2Output.value = data[1].content || '';
+                post3Output.value = data[2].content || '';
+                angleBadge.textContent = 'H-P-S-C Threads';
+            } else if (data.post_1_caption) {
+                // Old backward-compatible format
+                post1Output.value = data.post_1_caption || '';
+                post2Output.value = data.post_2_reply_cta || '';
+                post3Output.value = '';
+                angleBadge.textContent = data.angle_type || 'Legacy';
+            } else {
+                return;
+            }
             outputSection.classList.remove('hidden');
             updateCharCount();
             lastGenerated = data;
         }
 
+        function copyAllThreads() {
+            const t1 = post1Output.value.trim();
+            const t2 = post2Output.value.trim();
+            const t3 = post3Output.value.trim();
+            let combined = "";
+            if (t1) combined += t1 + "\n\n";
+            if (t2) combined += t2 + "\n\n";
+            if (t3) combined += t3;
+
+            navigator.clipboard.writeText(combined.trim()).then(() => {
+                showToast('Semua threads berhasil disalin!');
+            });
+        }
+
         async function generateContent() {
             const name = inputName.value.trim();
+            const description = inputDescription.value.trim();
             const link = inputLink.value.trim();
             const price = inputPrice.value.trim();
 
@@ -243,7 +302,7 @@
                 const res = await fetch('/api/threads/generate', {
                     method: 'POST',
                     headers: { 'Content-Type': 'application/json' },
-                    body: JSON.stringify({ name, link, price }),
+                    body: JSON.stringify({ name, description, link, price }),
                 });
                 const data = await res.json();
 

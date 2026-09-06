@@ -59,6 +59,7 @@ cp .env.example .env
 #   TELEGRAM_BOT_TOKEN    — dari @BotFather
 #   GOOGLE_SHEETS_CREDENTIALS — JSON service account Google
 #   SPREADSHEET_ID        — ID spreadsheet Anda
+#   GEMINI_API_KEY        — API Key Gemini (dari Google AI Studio)
 ```
 
 4. Jalankan server:

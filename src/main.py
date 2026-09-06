@@ -112,19 +112,23 @@ async def api_generate_caption(request: Request):
 
 @app.post("/api/threads/generate")
 async def api_generate_threads(request: Request):
-    """Generate Threads 'Spill di Reply' content for a product."""
+    """Generate Threads H-P-S-C content for a product."""
     body = await request.json()
     name = (body.get("name") or "").strip()
+    description = (body.get("description") or "").strip()
     link = (body.get("link") or "").strip()
     price = (body.get("price") or "").strip()
 
     if not name:
         return JSONResponse({"error": "Nama produk wajib diisi"}, status_code=400)
+        
+    if not description:
+        description = name
 
     from src.services.ai import generate_threads_content
 
     try:
-        result = await generate_threads_content(name=name, price=price, link=link)
+        result = await generate_threads_content(name=name, description=description, price=price, link=link)
         if not result:
             return JSONResponse({"error": "Gagal generate konten threads"}, status_code=500)
         return JSONResponse(result)

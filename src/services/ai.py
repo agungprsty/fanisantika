@@ -2,7 +2,8 @@
 
 import logging
 import asyncio
-from openai import AsyncOpenAI
+from google import genai
+from google.genai import types
 
 from src.config import settings
 
@@ -31,37 +32,24 @@ async def generate_caption(
     platform: str,
     max_retries: int = 3
 ) -> str:
-    """Generate a product caption using OpenRouter (OpenAI SDK)."""
+    """Generate a product caption using Gemini API."""
     
-    if not settings.OPENROUTER_API_KEY:
-        log.warning("OPENROUTER_API_KEY not set, skipping caption generation")
+    if not settings.GEMINI_API_KEY:
+        log.warning("GEMINI_API_KEY not set, skipping caption generation")
         return ""
 
     prompt = _build_prompt(name, price, link, platform)
     
-    # Inisialisasi client AsyncOpenAI dengan max_retries=0
-    # untuk mencegah badai request (retry storm) dari library bawaan
-    client = AsyncOpenAI(
-        base_url="https://openrouter.ai/api/v1",
-        api_key=settings.OPENROUTER_API_KEY,
-        max_retries=0, 
-    )
+    client = genai.Client(api_key=settings.GEMINI_API_KEY)
 
     for attempt in range(max_retries):
         try:
-            # Gunakan model openrouter/free untuk otomatis memilih model gratis yang tersedia
-            response = await client.chat.completions.create(
-                model="openrouter/free",
-                messages=[
-                    {"role": "user", "content": prompt}
-                ],
-                extra_headers={
-                    "HTTP-Referer": "https://github.com/agungprsty/fanisantika", 
-                    "X-Title": "Affiliate Auto Caption", 
-                }
+            response = await client.aio.models.generate_content(
+                model='gemini-3.6-flash',
+                contents=prompt
             )
+            caption = response.text.strip() if response.text else ""
             
-            caption = response.choices[0].message.content.strip() if response.choices[0].message.content else ""
             log.info(f"Caption generated for '{name}' ({len(caption)} chars)")
             return caption
             
@@ -75,76 +63,95 @@ async def generate_caption(
                     await asyncio.sleep(wait_time)
                 else:
                     log.error(f"Gagal generate caption setelah {max_retries} percobaan.")
+            else:
+                log.error(f"Gagal generate caption: {error_msg}")
+                break
     return ""
 
 
-def _build_threads_prompt(name: str, price: str, link: str) -> str:
-    """Build the prompt for Threads 'Spill di Reply' content generation."""
-    return f"""Buat 1 thread perdebatan untuk produk ini.
+def _build_threads_prompt(name: str, description: str, price: str, link: str, hook_database_json: str) -> str:
+    """Build the prompt for Threads 'H-P-S-C' content generation."""
+    return f"""Buat 3 postingan berseri (Threads) untuk produk ini.
 Nama Produk: {name}
+Deskripsi/Fungsi: {description}
 Harga: {price}
-Link: {link}
-Pilih SATU dari angle berikut secara acak: [Unpopular Opinion / Relatable Sambat / Merendahkan Produk Mahal].
+Link/Bio: {link}
 
-Format JSON yang diharapkan:
-{{
-  "angle_type": "...",
-  "post_1_caption": "...",
-  "post_2_reply_cta": "... [Link]"
-}}"""
+REFERENSI HOOK DATABASE:
+{hook_database_json}
+
+Tugasmu:
+1. Analisis 'Deskripsi/Fungsi' produk di atas.
+2. Pilih SATU `hook_type` dari referensi hook database yang paling relevan.
+3. Gunakan salah satu `examples` dari `hook_type` tersebut sebagai kalimat pembuka yang MUTLAK di Post 1.
+4. Buat 3 post sesuai formula H-P-S-C.
+
+Format JSON yang diwajibkan:
+[
+  {{ "post": 1, "content": "[Teks Hook dari database + Konteks/Validasi Masalah]" }},
+  {{ "post": 2, "content": "[Teks Solusi Produk tanpa klaim hiperbola]" }},
+  {{ "post": 3, "content": "[Teks Kesimpulan + CTA ke Link/Bio]" }}
+]"""
 
 
-THREADS_SYSTEM_PROMPT = """Kamu adalah seorang Social Media Specialist dan Affiliate Marketer di platform X/Threads. Tugasmu adalah membuat konten "Engagement Bait" berupa thread pendek (2 post) yang memicu perdebatan atau emosi netizen Indonesia.
+THREADS_SYSTEM_PROMPT = """Kamu adalah seorang AI Affiliate Copywriter spesialis platform Threads.
+Tugas utamamu adalah meracik konten promosi berseri (3 postingan berurutan) yang natural, empatik, tidak manipulatif, dan sangat beresonansi dengan pola pikir rasional calon pembeli.
 
-Aturan penulisan:
-1. Gunakan bahasa Indonesia sehari-hari, natural, dan campur dengan sedikit slang Gen-Z/Jaksel (misal: jujurly, fomo, mending, valid no debat, nder).
-2. POST 1 (Post Utama): HARUS murni opini kontroversial, keluhan (sambat), atau opini melawan arus (unpopular opinion). JANGAN ADA indikasi jualan, rekomendasi, atau menyebutkan link sama sekali. Fokus 100% memancing emosi/reaksi. Maksimal 250 karakter.
-3. POST 2 (Reply/Thread): Ini adalah tempat menaruh link. Buat transisi yang natural seolah-olah kamu merespons audiens atau sekadar "mumpung rame". Contoh angle Post 2: "Banyak yang nanya di DM...", "Biar kalian gak repot nyari...", atau "Sumpah gara-gara pake ini...".
-4. DILARANG KERAS menggunakan hashtag (#) atau kata-kata iklan kaku.
-5. Output HARUS dalam format JSON murni."""
+PANDUAN OPERASIONAL (FORMULA H-P-S-C):
+- Post 1 (Hook + Context): Mulai dengan kalimat Hook yang dipilih dari referensi untuk menghentikan scroll audiens. Lanjutkan dengan 1-2 kalimat yang memvalidasi masalah harian agar audiens merasa dipahami. JANGAN menyebutkan nama produk di post ini. Maksimal 280 karakter.
+- Post 2 (Solution / Value): Hadirkan produk secara halus sebagai solusi rasional. Jelaskan 1-2 fungsi krusial atau real experience tanpa menggunakan klaim hiperbola, kata sifat berlebihan, atau kesan "hard selling".
+- Post 3 (Call to Action): Berikan penutup singkat yang meyakinkan, diakhiri dengan arahan lembut menuju link afiliasi atau bio.
+
+GAYA BAHASA (TONE & VOICE):
+Gunakan gaya bahasa santai, kasual (gue/lo atau aku/kamu), informatif, dan storytelling. 
+Hindari bahasa robotik, jangan gunakan hashtag (#), dan jangan terkesan seperti iklan tradisional.
+
+ATURAN OUTPUT:
+Kamu HANYA diizinkan mengeluarkan output MURNI dalam format JSON (Array of Objects) sesuai struktur yang diminta. Jangan tambahkan teks markdown, penjelasan, atau basa-basi di luar JSON array tersebut."""
 
 
 async def generate_threads_content(
     name: str,
+    description: str,
     price: str,
     link: str,
     max_retries: int = 3,
-) -> dict:
-    """Generate Threads 'Spill di Reply' content (Post 1 + Post 2).
+) -> list:
+    """Generate Threads H-P-S-C content (3 posts).
 
-    Returns dict with keys: angle_type, post_1_caption, post_2_reply_cta.
-    Returns empty dict on failure.
+    Returns a list of dicts: [{"post": 1, "content": "..."}, ...]
+    Returns empty list on failure.
     """
-    if not settings.OPENROUTER_API_KEY:
-        log.warning("OPENROUTER_API_KEY not set, skipping threads content generation")
-        return {}
+    if not settings.GEMINI_API_KEY:
+        log.warning("GEMINI_API_KEY not set, skipping threads content generation")
+        return []
 
-    user_prompt = _build_threads_prompt(name, price, link)
+    # Load hook database
+    import json as _json
+    import os
+    
+    hook_database_json = "[]"
+    try:
+        hook_path = os.path.join(os.path.dirname(os.path.dirname(__file__)), "hook_databases.json")
+        with open(hook_path, "r", encoding="utf-8") as f:
+            hook_database_json = f.read()
+    except Exception as e:
+        log.error(f"Gagal memuat hook_databases.json: {e}")
 
-    client = AsyncOpenAI(
-        base_url="https://openrouter.ai/api/v1",
-        api_key=settings.OPENROUTER_API_KEY,
-        max_retries=0,
-    )
+    user_prompt = _build_threads_prompt(name, description, price, link, hook_database_json)
+
+    client = genai.Client(api_key=settings.GEMINI_API_KEY)
 
     for attempt in range(max_retries):
         try:
-            response = await client.chat.completions.create(
-                model="openrouter/free",
-                messages=[
-                    {"role": "system", "content": THREADS_SYSTEM_PROMPT},
-                    {"role": "user", "content": user_prompt},
-                ],
-                extra_headers={
-                    "HTTP-Referer": "https://github.com/agungprsty/fanisantika",
-                    "X-Title": "Affiliate Threads Generator",
-                },
+            response = await client.aio.models.generate_content(
+                model='gemini-3.6-flash',
+                contents=user_prompt,
+                config=types.GenerateContentConfig(
+                    system_instruction=THREADS_SYSTEM_PROMPT,
+                )
             )
-
-            content = response.choices[0].message.content.strip() if response.choices[0].message.content else ""
-
-            # Try to parse JSON from response
-            import json as _json
+            content = response.text.strip() if response.text else ""
 
             # Handle markdown code blocks
             if "```json" in content:
@@ -154,16 +161,20 @@ async def generate_threads_content(
 
             result = _json.loads(content)
 
-            # Validate required keys
-            if all(k in result for k in ("angle_type", "post_1_caption", "post_2_reply_cta")):
-                # Enforce 250 char limit on post_1
-                if len(result["post_1_caption"]) > 250:
-                    result["post_1_caption"] = result["post_1_caption"][:247] + "..."
-                log.info(f"Threads content generated for '{name}' (angle: {result['angle_type']})")
-                return result
-            else:
-                log.warning("AI response missing required keys, retrying...")
-                continue
+            # Validate required format: list of 3 objects with "post" and "content"
+            if isinstance(result, list) and len(result) >= 3:
+                is_valid = True
+                for i in range(3):
+                    if "post" not in result[i] or "content" not in result[i]:
+                        is_valid = False
+                        break
+                
+                if is_valid:
+                    log.info(f"Threads content generated for '{name}' (3 posts)")
+                    return result[:3]  # Ensure exactly 3 posts are returned
+                
+            log.warning("AI response structure is not a valid 3-post array, retrying...")
+            continue
 
         except Exception as e:
             error_msg = str(e)
@@ -177,6 +188,6 @@ async def generate_threads_content(
                     return {}
             else:
                 log.error(f"Threads generation failed: {error_msg}")
-                return {}
+                return []
 
-    return {}
+    return []

@@ -1,0 +1,57 @@
+[
+  {
+    "hook_type": "relatable_sambat",
+    "category": "Masalah Sehari-hari",
+    "description": "Cocok untuk produk yang menjadi solusi atas masalah sehari-hari yang bikin repot atau frustrasi. Digunakan agar audiens merasa dipahami.",
+    "examples": [
+      "Pernah gak sih ngerasa udah coba berbagai cara tapi masalahnya tetep balik lagi?",
+      "Capek banget gak sih ngadepin hal sepele tapi bikin mood hancur seharian?",
+      "Salah satu hal paling ngeselin pas lagi buru-buru tuh ya ini...",
+      "Jujurly, hal sekecil ini sering banget bikin emosi memuncak gak jelas."
+    ]
+  },
+  {
+    "hook_type": "unpopular_opinion",
+    "category": "Opini Melawan Arus",
+    "description": "Cocok untuk produk pintar / underrated yang menggantikan kebiasaan lama atau barang mahal. Digunakan untuk membongkar mitos.",
+    "examples": [
+      "Menurut gue, kebanyakan orang salah fokus pas nyari solusi buat masalah ini.",
+      "Unpopular opinion: barang mahal gak selalu jadi jaminan masalah lo langsung kelar.",
+      "Jujurly, kita tuh sering buang duit buat hal yang sebenernya ada alternatif jauh lebih masuk akal.",
+      "Sering banget diremehin, padahal yang kayak gini lebih worth it dibanding produk mahal yang fomo."
+    ]
+  },
+  {
+    "hook_type": "curiosity_gap",
+    "category": "Rasa Penasaran",
+    "description": "Cocok untuk produk dengan fungsi unik atau efisiensi tinggi yang belum banyak orang tahu.",
+    "examples": [
+      "Awalnya gue skeptis banget sama barang ginian, mikirnya paling cuma gimmick doang.",
+      "Ternyata ada satu detail kecil yang sering kita abaikan pas milih produk ginian.",
+      "Kalo dari dulu tau ada solusi sesimpel ini, mungkin gue gak bakal buang-buang waktu.",
+      "Baru sadar ternyata hal sekecil ini yang bikin beda banget hasilnya."
+    ]
+  },
+  {
+    "hook_type": "smart_spending",
+    "category": "Hemat Uang & Energi",
+    "description": "Cocok untuk produk murah berkualitas (value for money) atau menghemat pengeluaran rutin.",
+    "examples": [
+      "Gak masuk akal sih kalo harus ngeluarin ratusan ribu tiap bulan cuma buat hal ini.",
+      "Kenapa ya baru sekarang sadar kalo ada alternatif yang jauh lebih hemat tapi fungsinya sama?",
+      "Buat kaum mendang-mending kayak gue, ini opsi paling rasional sih.",
+      "Kadang bingung kenapa orang mau bayar mahal buat sesuatu yang sebenernya ada versi hematnya."
+    ]
+  },
+  {
+    "hook_type": "life_upgrade",
+    "category": "Perubahan Berdampak",
+    "description": "Cocok untuk produk peningkatan produktivitas, kenyamanan rumah, atau self-care. Menekankan pada *before/after*.",
+    "examples": [
+      "Ternyata bener, hal sekecil ini bisa bikin rutinitas harian jauh lebih enteng.",
+      "Bedanya tipis, tapi pas udah ngerasain sendiri baru sadar dampaknya signifikan banget.",
+      "Gak nyangka upgrade sekecil ini bisa ngurangin stres harian yang lumayan kerasa.",
+      "Awalnya mikir ini cuma pamer doang, ternyata beneran ngerubah suasana banget."
+    ]
+  }
+]
